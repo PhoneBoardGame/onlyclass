@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>바이러스 게임 · 접속 테스트 (교사용)</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{--bg:#0f1419;--panel:#1a2129;--line:#2c3742;--text:#e8edf2;--muted:#8a99a8;--ok:#3ecf8e;--bad:#ff6b6b;--warn:#f5b94a;--accent:#5aa9ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+  .wrap{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:300px 1fr;gap:20px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px}
+  .code{font-size:44px;font-weight:800;letter-spacing:6px;text-align:center;margin:10px 0 4px}
+  #qr{display:flex;justify-content:center;background:#fff;padding:12px;border-radius:10px;margin:8px 0}
+  .url{font-size:11px;color:var(--muted);word-break:break-all;text-align:center}
+  .status{margin-top:10px;padding:8px;border-radius:8px;background:#0b0f13;font-size:13px;text-align:center}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .stat b{display:block;font-size:28px}
+  .stat span{color:var(--muted);font-size:12px}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+  button{background:#26313c;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#06121f;border:none;font-weight:700}
+  button:disabled{opacity:.4;cursor:default}
+  select{background:#26313c;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px}
+  label.tog{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .seat{background:#141a20;border:2px solid var(--line);border-radius:12px;padding:10px;min-height:92px;position:relative;cursor:pointer}
+  .seat .no{font-size:22px;font-weight:800}
+  .seat .nm{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seat .pg{position:absolute;right:8px;top:8px;font-size:11px;color:var(--muted)}
+  .seat .rl{font-size:12px;margin-top:4px;color:var(--warn)}
+  .seat .ck{position:absolute;right:8px;bottom:6px;font-size:18px}
+  .seat.on{border-color:var(--ok)}
+  .seat.off{border-color:var(--bad);background:#241517}
+  .seat.empty{opacity:.35}
+  .roundbar{margin:14px 0;padding:12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:15px}
+  .log{height:180px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted);background:#0b0f13;border-radius:10px;padding:10px;margin-top:14px}
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}.grid{grid-template-columns:repeat(4,1fr)}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="panel">
+      <h1>바이러스 게임</h1>
+      <div class="sub">학급 접속 테스트 · 교사용 화면</div>
+      <div class="code" id="code">----</div>
+      <div id="qr"></div>
+      <div class="url" id="url"></div>
+      <div class="status" id="hostStatus">방 여는 중…</div>
+      <div class="hint">
+        · 이 화면은 <b>교사 PC</b>에서 열어 TV에 띄우세요.<br>
+        · 테스트 중에는 이 탭을 닫거나 새로고침하지 마세요. (새로고침해도 학생들은 자동으로 다시 붙도록 만들어 두었어요.)<br>
+        · 자리 칸을 누르면 그 자리를 비울 수 있어요.
+      </div>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div>
+    <div class="stats">
+      <div class="stat"><b id="sConn">0</b><span>지금 접속 중</span></div>
+      <div class="stat"><b id="sJoin">0</b><span>입장한 자리 수</span></div>
+      <div class="stat"><b id="sRecon">0</b><span>재접속 횟수</span></div>
+      <div class="stat"><b id="sPing">-</b><span>평균 / 최대 응답속도(ms)</span></div>
+    </div>
+
+    <div class="controls">
+      <select id="maxSeats"></select>
+      <button class="primary" id="btnRoles">① 역할 배부</button>
+      <button class="primary" id="btnRound">② 라운드 시작</button>
+      <button class="primary" id="btnReveal">③ 결과 공개</button>
+      <button id="btnReset">로비로 초기화</button>
+      <button id="btnCopy">테스트 결과 복사</button>
+      <button id="btnNew">새 방 만들기</button>
+      <label class="tog"><input type="checkbox" id="teacherView"> 교사 정보 보기 (역할·선택)</label>
+    </div>
+
+    <div class="roundbar" id="roundBar">학생들이 QR로 들어오기를 기다리는 중이에요.</div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<script>
+const PREFIX = 'onlyclass-v1-';
+const PING_MS = 3000, DEAD_MS = 9000;
+
+const ROLE_DESC = {
+  '숙주': '최초 감염자예요. 같은 숙주끼리는 서로를 알아요. 시민들을 감염시키세요.',
+  '방역관': '숙주를 찾아 격리하는 역할이에요. 다른 방역관이 누군지는 몰라요.',
+  '역학조사관': '매 라운드 한 명의 정체를 조사할 수 있어요.',
+  '연구원': '항체 보유자를 찾아 치료제를 만드는 역할이에요.',
+  '슈퍼전파자 지망생': '일찍 감염되거나 격리될수록 이기는 중립 역할이에요.',
+  '시민': '특별한 능력은 없지만, 토론과 투표로 숙주를 찾아내세요.'
+};
+
+// ---------- 저장 ----------
+function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<4;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+let code = load('oc_host_code');
+if(!code){ code = genCode(); save('oc_host_code', code); }
+
+const fresh = () => ({ maxSeats:27, seats:{}, phase:'lobby', round:0, roles:{}, antibody:[], submissions:{}, roundStart:0, roundDone:null, history:[], stats:{joins:0, reconnects:0, maxPing:0} });
+let S = load('oc_host_state') || fresh();
+// 새로고침 직후엔 모두 끊긴 것으로 표시 (학생 쪽이 자동 재접속)
+Object.values(S.seats).forEach(s => { s.connected=false; s.ping=null; });
+const conns = {};   // seat -> DataConnection (실행 중에만)
+function persist(){ save('oc_host_state', S); }
+
+// ---------- 로그 ----------
+function log(msg){
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('ko-KR',{hour12:false});
+  el.insertAdjacentHTML('afterbegin', `<div>[${t}] ${msg}</div>`);
+}
+
+// ---------- PeerJS 방 열기 ----------
+let peer, idRetry = 0;
+function openRoom(){
+  document.getElementById('code').textContent = code;
+  const joinUrl = new URL('join.html?room=' + code, location.href).href;
+  document.getElementById('url').textContent = joinUrl;
+  const qr = document.getElementById('qr'); qr.innerHTML='';
+  try{ new QRCode(qr, { text: joinUrl, width: 220, height: 220 }); }catch(e){ qr.textContent='QR 생성 실패 — 주소를 직접 입력하세요'; }
+
+  peer = new Peer(PREFIX + code, { debug: 1 });
+  peer.on('open', () => { idRetry=0; setHost('방이 열렸어요 · QR을 찍고 들어오세요', 'ok'); log('방 열림: ' + code); });
+  peer.on('connection', onConnection);
+  peer.on('disconnected', () => { setHost('중계 서버와 끊김 · 다시 연결 중…', 'warn'); log('브로커 연결 끊김 → 재연결 시도'); setTimeout(()=>{ try{ peer.reconnect(); }catch(e){} }, 1500); });
+  peer.on('error', e => {
+    log('오류: ' + e.type);
+    if(e.type === 'unavailable-id'){
+      // 새로고침 직후 같은 방 코드가 아직 서버에 남아 있는 경우
+      idRetry++;
+      setHost(`방 코드를 다시 잡는 중… (${idRetry})`, 'warn');
+      try{ peer.destroy(); }catch(_){}
+      if(idRetry <= 10) setTimeout(openRoom, 3000);
+      else setHost('방 코드를 잡지 못했어요. [새 방 만들기]를 눌러 주세요.', 'bad');
+    } else if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){
+      setHost('네트워크 문제 · 다시 연결 중…', 'warn');
+    }
+  });
+}
+function setHost(msg, kind){
+  const el = document.getElementById('hostStatus');
+  el.textContent = msg;
+  el.style.color = kind==='ok' ? 'var(--ok)' : kind==='bad' ? 'var(--bad)' : 'var(--warn)';
+}
+
+// ---------- 연결 처리 ----------
+function onConnection(conn){
+  conn.on('data', d => handle(conn, d));
+  conn.on('close', () => markClosed(conn));
+  conn.on('error', () => markClosed(conn));
+}
+function send(conn, msg){ try{ if(conn && conn.open) conn.send(msg); }catch(e){} }
+function sendSeat(seat, msg){ send(conns[seat], msg); }
+function broadcast(msg){ Object.keys(conns).forEach(s => sendSeat(s, msg)); }
+
+function takenSeats(){ return Object.keys(S.seats).filter(k => S.seats[k].connected).map(Number); }
+
+function handle(conn, d){
+  if(!d || typeof d !== 'object') return;
+  if(d.t === 'hello'){
+    send(conn, { t:'info', maxSeats:S.maxSeats, taken: takenSeats() });
+    return;
+  }
+  if(d.t === 'join'){
+    const seat = Number(d.seat);
+    if(!(seat >= 1 && seat <= S.maxSeats)){ send(conn, {t:'reject', reason:'없는 자리 번호예요.'}); return; }
+    const cur = S.seats[seat];
+    if(cur && cur.token !== d.token){
+      send(conn, {t:'reject', reason: seat + '번 자리는 이미 다른 사람이 쓰고 있어요. 선생님께 말해 주세요.'});
+      log(`${seat}번 자리 중복 시도 거절`);
+      return;
+    }
+    if(cur){ S.stats.reconnects++; cur.reconnects=(cur.reconnects||0)+1; log(`${seat}번 재접속 (${cur.name||''})`); }
+    else { S.seats[seat] = { name:(d.name||'').slice(0,10), token:d.token, reconnects:0 }; S.stats.joins++; log(`${seat}번 입장 (${d.name||''})`); }
+    const s = S.seats[seat];
+    if(d.name) s.name = d.name.slice(0,10);
+    if(conns[seat] && conns[seat] !== conn){ try{ conns[seat].close(); }catch(e){} }
+    conn.seat = seat; conns[seat] = conn;
+    s.connected = true; s.lastSeen = Date.now();
+    send(conn, snapshot(seat));
+    persist(); render();
+    return;
+  }
+  const seat = conn.seat;
+  if(!seat || !S.seats[seat] || conns[seat] !== conn) return;
+  const s = S.seats[seat];
+  s.lastSeen = Date.now();
+  if(!s.connected){ s.connected = true; render(); }
+  if(d.t === 'pong'){
+    s.ping = Date.now() - d.ts;
+    if(s.ping > S.stats.maxPing) S.stats.maxPing = s.ping;
+    return;
+  }
+  if(d.t === 'submit' && S.phase === 'round' && d.round === S.round){
+    const sub = S.submissions[S.round] || (S.submissions[S.round] = {});
+    if(sub[seat]) return;
+    sub[seat] = { target: Number(d.target), at: Date.now() - S.roundStart };
+    checkRoundDone();
+    persist(); render();
+  }
+}
+
+function snapshot(seat){
+  return {
+    t:'welcome', seat, name: S.seats[seat].name, maxSeats: S.maxSeats,
+    phase: S.phase, round: S.round,
+    role: roleMsg(seat),
+    roster: rosterList(),
+    submitted: (S.submissions[S.round]||{})[seat] ? true : false,
+    reveal: S.phase === 'reveal' ? lastRevealText() : null
+  };
+}
+function roleMsg(seat){
+  const r = S.roles[seat];
+  if(!r) return null;
+  const msg = { role:r, desc:ROLE_DESC[r] };
+  if(r === '숙주') msg.partners = Object.keys(S.roles).filter(k => S.roles[k]==='숙주' && Number(k)!==seat).map(Number);
+  return msg;
+}
+function rosterList(){ return Object.keys(S.seats).map(Number).sort((a,b)=>a-b).map(n => ({ seat:n, name:S.seats[n].name })); }
+
+function markClosed(conn){
+  const seat = conn.seat;
+  if(seat && conns[seat] === conn){
+    delete conns[seat];
+    if(S.seats[seat]){ S.seats[seat].connected = false; S.seats[seat].ping = null; log(`${seat}번 연결 끊김`); }
+    persist(); render();
+  }
+}
+
+// ---------- 하트비트 ----------
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(conns).forEach(seat => {
+    sendSeat(seat, { t:'ping', ts: now });
+    const s = S.seats[seat];
+    if(s && s.connected && s.lastSeen && now - s.lastSeen > DEAD_MS){
+      s.connected = false; s.ping = null; log(`${seat}번 응답 없음 (끊김 처리)`);
+      try{ conns[seat].close(); }catch(e){}
+      delete conns[seat];
+      render();
+    }
+  });
+  renderStats();
+}, PING_MS);
+
+// ---------- 게임 흐름 (테스트) ----------
+function buildRoles(n){
+  const r = [], add = (name,k) => { for(let i=0;i<k;i++) r.push(name); };
+  add('숙주', Math.max(1, Math.round(n*3/25)));
+  add('방역관', Math.max(1, Math.round(n*2/25)));
+  add('역학조사관', Math.max(1, Math.round(n*2/25)));
+  add('연구원', Math.max(1, Math.round(n*3/25)));
+  if(n >= 8) add('슈퍼전파자 지망생', 1);
+  while(r.length < n) r.push('시민');
+  return shuffle(r).slice(0, n);
+}
+
+document.getElementById('btnRoles').onclick = () => {
+  const seats = Object.keys(S.seats).map(Number);
+  if(seats.length < 1){ log('입장한 학생이 없어요'); return; }
+  const roles = buildRoles(seats.length);
+  S.roles = {};
+  shuffle(seats).forEach((seat,i) => S.roles[seat] = roles[i]);
+  const citizens = seats.filter(s => S.roles[s] === '시민');
+  S.antibody = shuffle(citizens).slice(0, seats.length >= 10 ? 2 : 1);   // 교사만 앎
+  S.phase = 'roles';
+  seats.forEach(seat => sendSeat(seat, { t:'role', ...roleMsg(seat) }));
+  log(`역할 배부 완료 (${seats.length}명)`);
+  persist(); render();
+};
+
+document.getElementById('btnRound').onclick = () => {
+  S.round++; S.phase = 'round'; S.roundStart = Date.now(); S.roundDone = null;
+  S.submissions[S.round] = {};
+  broadcast({ t:'round', round:S.round, roster: rosterList() });
+  log(`라운드 ${S.round} 시작`);
+  persist(); render();
+};
+
+function checkRoundDone(){
+  const sub = S.submissions[S.round] || {};
+  const online = takenSeats();
+  if(!S.roundDone && online.length && online.every(s => sub[s])){
+    S.roundDone = Date.now() - S.roundStart;
+    log(`라운드 ${S.round}: 접속자 전원 제출 (${(S.roundDone/1000).toFixed(1)}초)`);
+  }
+}
+
+function lastRevealText(){ const h = S.history[S.history.length-1]; return h ? h.text : ''; }
+
+document.getElementById('btnReveal').onclick = () => {
+  if(S.phase !== 'round'){ log('먼저 라운드를 시작하세요'); return; }
+  const sub = S.submissions[S.round] || {};
+  const n = Object.keys(sub).length, total = Object.keys(S.seats).length;
+  const times = Object.values(sub).map(x => x.at);
+  const last = times.length ? Math.max(...times) : 0;
+  const text = `라운드 ${S.round} 결과 · 제출 ${n}/${total}명 · 마지막 제출까지 ${(last/1000).toFixed(1)}초`;
+  S.history.push({ round:S.round, submitted:n, total, lastSec:+(last/1000).toFixed(1), allIn: S.roundDone ? +(S.roundDone/1000).toFixed(1) : null, text });
+  S.phase = 'reveal';
+  broadcast({ t:'reveal', text });
+  log(text);
+  persist(); render();
+};
+
+document.getElementById('btnReset').onclick = () => {
+  S.phase='lobby'; S.roles={}; S.antibody=[]; S.round=0; S.submissions={}; S.roundDone=null;
+  broadcast({ t:'reset' });
+  log('로비로 초기화 (자리는 유지)');
+  persist(); render();
+};
+
+document.getElementById('btnNew').onclick = () => {
+  if(!confirm('새 방을 만들면 지금 들어온 학생들은 QR을 다시 찍어야 해요. 계속할까요?')) return;
+  broadcast({ t:'closed' });
+  try{ localStorage.removeItem('oc_host_code'); localStorage.removeItem('oc_host_state'); }catch(e){}
+  setTimeout(() => location.reload(), 300);
+};
+
+document.getElementById('btnCopy').onclick = () => {
+  const pings = Object.values(S.seats).map(s => s.ping).filter(p => p != null);
+  const avg = pings.length ? Math.round(pings.reduce((a,b)=>a+b,0)/pings.length) : '-';
+  const lines = [
+    `[바이러스 게임 접속 테스트 결과] ${new Date().toLocaleString('ko-KR')}`,
+    `설정 인원: ${S.maxSeats}명`,
+    `입장한 자리: ${Object.keys(S.seats).length}개 / 지금 접속 중: ${takenSeats().length}명`,
+    `재접속 횟수: ${S.stats.reconnects}회`,
+    `응답속도: 평균 ${avg}ms / 최대 ${S.stats.maxPing}ms`,
+    `재접속이 많았던 자리: ` + (Object.keys(S.seats).filter(k => (S.seats[k].reconnects||0) >= 2).map(k => `${k}번(${S.seats[k].reconnects}회)`).join(', ') || '없음'),
+    ...S.history.map(h => `라운드 ${h.round}: 제출 ${h.submitted}/${h.total}, 전원 제출 ${h.allIn != null ? h.allIn+'초' : '미완료'}, 마지막 제출 ${h.lastSec}초`)
+  ];
+  const text = lines.join('\n');
+  const done = () => log('테스트 결과를 클립보드에 복사했어요');
+  if(navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => prompt('아래 내용을 복사하세요', text));
+  else prompt('아래 내용을 복사하세요', text);
+};
+
+// ---------- 인원 설정 ----------
+const sel = document.getElementById('maxSeats');
+for(let n=20;n<=30;n++) sel.insertAdjacentHTML('beforeend', `<option value="${n}">자리 ${n}개</option>`);
+sel.value = S.maxSeats;
+sel.onchange = () => { S.maxSeats = Number(sel.value); persist(); render(); };
+document.getElementById('teacherView').onchange = render;
+
+// ---------- 화면 ----------
+function render(){
+  const tv = document.getElementById('teacherView').checked;
+  const sub = S.submissions[S.round] || {};
+  const g = document.getElementById('grid'); g.innerHTML = '';
+  for(let n=1; n<=S.maxSeats; n++){
+    const s = S.seats[n];
+    const div = document.createElement('div');
+    div.className = 'seat ' + (!s ? 'empty' : s.connected ? 'on' : 'off');
+    let html = `<div class="no">${n}</div>`;
+    if(s){
+      html += `<div class="nm">${esc(s.name||'')}</div>`;
+      html += `<div class="pg">${s.connected ? (s.ping!=null ? s.ping+'ms' : '…') : '끊김'}</div>`;
+      if(tv && S.roles[n]) html += `<div class="rl">${S.roles[n]}${S.antibody.includes(n)?' · 항체':''}</div>`;
+      if(S.phase==='round' || S.phase==='reveal'){
+        if(sub[n]) html += `<div class="ck">${tv ? '→'+sub[n].target : '✅'}</div>`;
+      }
+    }
+    div.innerHTML = html;
+    div.onclick = () => {
+      if(!s) return;
+      if(confirm(`${n}번 자리를 비울까요? (그 학생은 다시 자리를 골라야 해요)`)){
+        sendSeat(n, { t:'kicked' });
+        try{ conns[n] && conns[n].close(); }catch(e){}
+        delete conns[n]; delete S.seats[n]; delete S.roles[n];
+        log(`${n}번 자리 비움`);
+        persist(); render();
+      }
+    };
+    g.appendChild(div);
+  }
+  const bar = document.getElementById('roundBar');
+  const online = takenSeats().length, joined = Object.keys(S.seats).length;
+  if(S.phase==='lobby') bar.textContent = `입장 대기 중 · ${joined}명 입장 / ${online}명 접속 중`;
+  else if(S.phase==='roles') bar.textContent = `역할 배부 완료 · 학생들은 휴대폰에서 역할 카드를 꾹 눌러 확인해요. 다음: 라운드 시작`;
+  else if(S.phase==='round'){
+    const n = Object.keys(sub).length;
+    bar.textContent = `라운드 ${S.round} 진행 중 · 제출 ${n}/${joined}명` + (S.roundDone ? ` · 접속자 전원 제출까지 ${(S.roundDone/1000).toFixed(1)}초` : '');
+  }
+  else if(S.phase==='reveal') bar.textContent = lastRevealText();
+  renderStats();
+}
+function renderStats(){
+  const pings = Object.values(S.seats).map(s => s.ping).filter(p => p != null);
+  document.getElementById('sConn').textContent = takenSeats().length;
+  document.getElementById('sJoin').textContent = Object.keys(S.seats).length;
+  document.getElementById('sRecon').textContent = S.stats.reconnects;
+  document.getElementById('sPing').textContent = pings.length ? `${Math.round(pings.reduce((a,b)=>a+b,0)/pings.length)} / ${S.stats.maxPing}` : '-';
+  // 진행 중 라운드 경과 시간 갱신
+  if(S.phase==='round') checkRoundDone();
+}
+function esc(t){ return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// 화면 꺼짐 방지 (지원하는 브라우저만)
+async function keepAwake(){ try{ if('wakeLock' in navigator) await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible') keepAwake(); });
+keepAwake();
+
+render();
+openRoom();
+</script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>바이러스 게임</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{--bg:#0f1419;--panel:#1a2129;--line:#2c3742;--text:#e8edf2;--muted:#8a99a8;--ok:#3ecf8e;--bad:#ff6b6b;--warn:#f5b94a;--accent:#5aa9ff}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;min-height:100vh}
+  .top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:14px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--warn)}
+  .dot.ok{background:var(--ok)} .dot.bad{background:var(--bad)}
+  main{padding:18px 16px;max-width:520px;margin:0 auto}
+  h2{font-size:22px;margin:6px 0 12px}
+  p{color:var(--muted);line-height:1.5;margin:6px 0}
+  input{width:100%;padding:14px;font-size:18px;border-radius:12px;border:1px solid var(--line);background:#141a20;color:var(--text);margin:8px 0}
+  button{width:100%;padding:16px;font-size:18px;font-weight:700;border-radius:12px;border:none;background:var(--accent);color:#06121f;margin-top:10px}
+  button:disabled{opacity:.4}
+  button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:400;font-size:14px;padding:10px}
+  .seats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0}
+  .seats div{padding:14px 0;text-align:center;border-radius:10px;background:#141a20;border:2px solid var(--line);font-size:18px;font-weight:700}
+  .seats div.taken{opacity:.25}
+  .seats div.sel{border-color:var(--accent);background:#1d3247}
+  .card{margin:16px 0;border-radius:16px;padding:22px;text-align:center;background:var(--panel);border:2px dashed var(--line);user-select:none;-webkit-user-select:none;touch-action:none}
+  .card .face{font-size:28px;font-weight:800;margin:8px 0}
+  .card.show{border-style:solid;border-color:var(--warn)}
+  .big{font-size:20px;text-align:center;padding:20px;background:var(--panel);border-radius:14px;margin:12px 0}
+  .err{color:var(--bad)}
+  .small{font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="top"><div><span class="dot" id="dot"></span><span id="conn">연결 중…</span></div><div id="me"></div></div>
+<main id="app"></main>
+
+<script>
+const PREFIX = 'onlyclass-v1-';
+const params = new URLSearchParams(location.search);
+let room = (params.get('room') || '').toUpperCase().trim();
+
+function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+function esc(t){ return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const app = document.getElementById('app');
+
+// 상태
+let me = room ? load('oc_player_' + room) : null;   // {seat, name, token}
+let G = { phase:'connecting', info:null, role:null, round:0, roster:[], submitted:false, reveal:null, pick:null, error:null };
+let peer = null, conn = null, reconTimer = null, failCount = 0, lastPing = 0, everJoined = false;
+
+// ---------- 방 코드 입력 ----------
+if(!room){
+  setConn('방 코드를 입력하세요', '');
+  app.innerHTML = `<h2>바이러스 게임</h2><p>TV에 보이는 4글자 방 코드를 입력하세요.</p>
+    <input id="rc" maxlength="4" placeholder="예: AB12" autocapitalize="characters">
+    <button id="go">들어가기</button>`;
+  document.getElementById('go').onclick = () => {
+    const v = document.getElementById('rc').value.toUpperCase().trim();
+    if(v.length === 4) location.href = location.pathname + '?room=' + v;
+  };
+} else {
+  start();
+}
+
+// ---------- 연결 ----------
+function setConn(text, kind){
+  document.getElementById('conn').textContent = text;
+  document.getElementById('dot').className = 'dot ' + (kind||'');
+}
+
+function start(){ ensurePeer(); }
+
+function ensurePeer(){
+  if(peer && !peer.destroyed && !peer.disconnected && peer.open){ connectToHost(); return; }
+  try{ peer && peer.destroy(); }catch(e){}
+  setConn('서버 연결 중…');
+  peer = new Peer({ debug: 1 });
+  peer.on('open', () => connectToHost());
+  // 중계 서버와만 끊긴 경우: 선생님과의 직접 연결은 살아 있을 수 있으니 서버만 다시 붙기
+  peer.on('disconnected', () => { setTimeout(() => { try{ if(peer && !peer.destroyed) peer.reconnect(); }catch(e){} }, 1000); });
+  peer.on('error', e => {
+    if(e.type === 'peer-unavailable'){
+      failCount++;
+      showError(failCount >= 3 ? '방을 찾을 수 없어요. 방 코드가 맞는지, 선생님 화면이 켜져 있는지 확인하세요.' : null);
+      scheduleReconnect(3000);
+    } else if(['network','server-error','socket-error','socket-closed'].includes(e.type)){
+      failCount++;
+      showError(failCount >= 3 ? '인터넷 연결이 불안정해요. 와이파이 ↔ 데이터를 바꿔 보세요.' : null);
+      scheduleReconnect(3000);
+    } else {
+      scheduleReconnect(3000);
+    }
+  });
+}
+
+function connectToHost(){
+  if(conn){ try{ conn.close(); }catch(e){} }
+  setConn(everJoined ? '다시 연결 중…' : '방에 들어가는 중…');
+  const c = peer.connect(PREFIX + room, { reliable: true });
+  conn = c;
+  let opened = false;
+  const timeout = setTimeout(() => {
+    if(!opened && c === conn){
+      failCount++;
+      showError(failCount >= 3 ? '연결이 계속 안 돼요. 와이파이 ↔ 데이터를 바꾸고 새로고침해 보세요.' : null);
+      try{ c.close(); }catch(e){}
+      scheduleReconnect(1000);
+    }
+  }, 8000);
+  c.on('open', () => {
+    if(c !== conn) return;
+    opened = true; clearTimeout(timeout); failCount = 0; lastPing = Date.now();
+    G.error = null;
+    setConn('연결됨', 'ok');
+    if(me && me.seat) c.send({ t:'join', seat:me.seat, name:me.name, token:me.token });
+    else c.send({ t:'hello' });
+  });
+  c.on('data', d => { if(c === conn) onData(d); });
+  c.on('close', () => { if(c === conn){ setConn('끊김 · 다시 연결 중…', 'bad'); scheduleReconnect(1500); } });
+  c.on('error', () => { if(c === conn) scheduleReconnect(1500); });
+}
+
+function scheduleReconnect(delay){
+  if(reconTimer) return;
+  reconTimer = setTimeout(() => { reconTimer = null; ensurePeer(); }, delay);
+}
+
+// 선생님 쪽 신호가 끊기면 자동 재연결
+setInterval(() => {
+  if(me && everJoined && conn && conn.open && lastPing && Date.now() - lastPing > 10000){
+    setConn('응답 없음 · 다시 연결 중…', 'bad');
+    lastPing = Date.now();
+    try{ conn.close(); }catch(e){}
+    scheduleReconnect(500);
+  }
+}, 2000);
+
+// 화면을 다시 켰을 때
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible'){
+    keepAwake();
+    if(!conn || !conn.open) scheduleReconnect(200);
+  }
+});
+async function keepAwake(){ try{ if('wakeLock' in navigator) await navigator.wakeLock.request('screen'); }catch(e){} }
+keepAwake();
+
+function sendHost(msg){ try{ if(conn && conn.open) conn.send(msg); }catch(e){} }
+
+// ---------- 메시지 ----------
+function onData(d){
+  if(!d || typeof d !== 'object') return;
+  switch(d.t){
+    case 'ping': lastPing = Date.now(); sendHost({ t:'pong', ts:d.ts }); return;
+    case 'info': G.info = d; G.phase = 'pickSeat'; break;
+    case 'reject':
+      G.error = d.reason;
+      if(me){ del('oc_player_' + room); me = null; }
+      sendHost({ t:'hello' });
+      return render();
+    case 'welcome':
+      everJoined = true;
+      G.phase = d.phase; G.round = d.round; G.role = d.role; G.roster = d.roster || [];
+      G.submitted = d.submitted; G.reveal = d.reveal; G.error = null;
+      if(me){ me.name = d.name || me.name; save('oc_player_' + room, me); }
+      break;
+    case 'role': G.role = { role:d.role, desc:d.desc, partners:d.partners }; G.phase = 'roles'; break;
+    case 'round': G.phase = 'round'; G.round = d.round; G.roster = d.roster || G.roster; G.submitted = false; G.pick = null; G.reveal = null; break;
+    case 'reveal': G.phase = 'reveal'; G.reveal = d.text; break;
+    case 'reset': G.phase = 'lobby'; G.role = null; G.round = 0; G.submitted = false; G.reveal = null; break;
+    case 'kicked': del('oc_player_' + room); me = null; G = { ...G, phase:'pickSeat', role:null, error:'선생님이 자리를 비웠어요. 다시 자리를 골라 주세요.' }; sendHost({ t:'hello' }); break;
+    case 'closed': del('oc_player_' + room); me = null; G.phase = 'closed'; break;
+  }
+  render();
+}
+
+function showError(msg){ if(msg){ G.error = msg; render(); } }
+
+// ---------- 화면 ----------
+function render(){
+  document.getElementById('me').textContent = me && me.seat ? `${me.seat}번 ${me.name||''}` : '';
+  const err = G.error ? `<p class="err">${esc(G.error)}</p>` : '';
+
+  if(G.phase === 'connecting'){
+    app.innerHTML = `<h2>방에 들어가는 중…</h2><p>방 코드 <b>${esc(room)}</b></p>${err}`;
+    return;
+  }
+  if(G.phase === 'closed'){
+    app.innerHTML = `<h2>방이 닫혔어요</h2><p>선생님이 새 방을 만들었어요. TV의 새 QR을 찍어 주세요.</p>`;
+    return;
+  }
+  if(G.phase === 'pickSeat' || !me){
+    const max = (G.info && G.info.maxSeats) || 27;
+    const taken = (G.info && G.info.taken) || [];
+    let cells = '';
+    for(let n=1;n<=max;n++) cells += `<div data-n="${n}" class="${taken.includes(n)?'taken':''} ${G.pick===n?'sel':''}">${n}</div>`;
+    app.innerHTML = `<h2>자리 번호를 고르세요</h2><p>선생님이 정해 준 번호(출석 번호)를 누르세요.</p>${err}
+      <div class="seats" id="seats">${cells}</div>
+      <input id="nm" maxlength="10" placeholder="이름 (선택)">
+      <button id="ok" ${G.pick?'':'disabled'}>${G.pick ? G.pick + '번으로 들어가기' : '번호를 고르세요'}</button>`;
+    document.querySelectorAll('#seats div').forEach(el => el.onclick = () => {
+      const n = Number(el.dataset.n);
+      if(taken.includes(n)) return;
+      const nm = document.getElementById('nm').value;
+      G.pick = n; render(); document.getElementById('nm').value = nm;
+    });
+    document.getElementById('ok').onclick = () => {
+      const name = document.getElementById('nm').value.trim();
+      me = { seat:G.pick, name, token: Math.random().toString(36).slice(2) + Date.now().toString(36) };
+      save('oc_player_' + room, me);
+      G.error = null;
+      sendHost({ t:'join', seat:me.seat, name, token:me.token });
+    };
+    return;
+  }
+
+  let html = err;
+  if(G.role) html += roleCard();
+
+  if(G.phase === 'lobby'){
+    html += `<div class="big">✅ ${me.seat}번 자리로 들어왔어요<br><span style="font-size:14px;color:var(--muted)">선생님이 시작할 때까지 기다려 주세요</span></div>`;
+  } else if(G.phase === 'roles'){
+    html += `<div class="big">위 카드를 <b>꾹 누르고 있으면</b> 내 역할이 보여요.<br><span style="font-size:14px;color:var(--muted)">옆 친구에게 보이지 않게 조심!</span></div>`;
+  } else if(G.phase === 'round'){
+    if(G.submitted){
+      html += `<div class="big">라운드 ${G.round} · 제출 완료 ✅<br><span style="font-size:14px;color:var(--muted)">다른 친구들을 기다리는 중</span></div>`;
+    } else {
+      const others = G.roster.filter(r => r.seat !== me.seat);
+      let cells = others.map(r => `<div data-n="${r.seat}" class="${G.pick===r.seat?'sel':''}">${r.seat}</div>`).join('');
+      html += `<h2>라운드 ${G.round}</h2><p>대상 한 명을 고르세요. (테스트: 모든 역할이 똑같이 한 명을 골라요)</p>
+        <div class="seats" id="tg">${cells}</div>
+        <button id="sub" ${G.pick?'':'disabled'}>${G.pick ? G.pick + '번 선택하고 제출' : '대상을 고르세요'}</button>`;
+    }
+  } else if(G.phase === 'reveal'){
+    html += `<div class="big">${esc(G.reveal || '')}</div>`;
+  }
+  html += `<button class="ghost" id="leave" style="margin-top:28px">자리 다시 고르기</button>
+           <div class="small">화면이 꺼져도 다시 켜면 자동으로 이어져요.</div>`;
+  app.innerHTML = html;
+
+  if(G.role) bindCard();
+  const tg = document.getElementById('tg');
+  if(tg) tg.querySelectorAll('div').forEach(el => el.onclick = () => { G.pick = Number(el.dataset.n); render(); });
+  const sub = document.getElementById('sub');
+  if(sub) sub.onclick = () => {
+    if(!G.pick) return;
+    sendHost({ t:'submit', round:G.round, target:G.pick });
+    G.submitted = true; render();
+  };
+  document.getElementById('leave').onclick = () => {
+    if(!confirm('지금 자리에서 나가고 다시 고를까요?')) return;
+    del('oc_player_' + room); location.reload();
+  };
+}
+
+function roleCard(){
+  return `<div class="card" id="card"><div style="color:var(--muted);font-size:14px">내 역할</div>
+    <div class="face" id="face">꾹 누르고 있기</div><div id="desc" style="font-size:14px;color:var(--muted)"></div></div>`;
+}
+function bindCard(){
+  const card = document.getElementById('card');
+  const r = G.role;
+  const show = e => {
+    e.preventDefault();
+    card.classList.add('show');
+    document.getElementById('face').textContent = r.role;
+    let d = r.desc || '';
+    if(r.partners && r.partners.length) d += ` 다른 숙주: ${r.partners.join(', ')}번`;
+    document.getElementById('desc').textContent = d;
+  };
+  const hide = () => {
+    card.classList.remove('show');
+    document.getElementById('face').textContent = '꾹 누르고 있기';
+    document.getElementById('desc').textContent = '';
+  };
+  card.addEventListener('pointerdown', show);
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, hide));
+  card.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+render();
+</script>
+</body>
+</html>
