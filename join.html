@@ -1,287 +1,396 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>바이러스 게임</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0f1419;--panel:#1a2129;--line:#2c3742;--text:#e8edf2;--muted:#8a99a8;--ok:#3ecf8e;--bad:#ff6b6b;--warn:#f5b94a;--accent:#5aa9ff}
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;min-height:100vh}
-  .top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:14px}
-  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--warn)}
-  .dot.ok{background:var(--ok)} .dot.bad{background:var(--bad)}
-  main{padding:18px 16px;max-width:520px;margin:0 auto}
-  h2{font-size:22px;margin:6px 0 12px}
-  p{color:var(--muted);line-height:1.5;margin:6px 0}
-  input{width:100%;padding:14px;font-size:18px;border-radius:12px;border:1px solid var(--line);background:#141a20;color:var(--text);margin:8px 0}
-  button{width:100%;padding:16px;font-size:18px;font-weight:700;border-radius:12px;border:none;background:var(--accent);color:#06121f;margin-top:10px}
-  button:disabled{opacity:.4}
-  button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:400;font-size:14px;padding:10px}
-  .seats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0}
-  .seats div{padding:14px 0;text-align:center;border-radius:10px;background:#141a20;border:2px solid var(--line);font-size:18px;font-weight:700}
-  .seats div.taken{opacity:.25}
-  .seats div.sel{border-color:var(--accent);background:#1d3247}
-  .card{margin:16px 0;border-radius:16px;padding:22px;text-align:center;background:var(--panel);border:2px dashed var(--line);user-select:none;-webkit-user-select:none;touch-action:none}
-  .card .face{font-size:28px;font-weight:800;margin:8px 0}
-  .card.show{border-style:solid;border-color:var(--warn)}
-  .big{font-size:20px;text-align:center;padding:20px;background:var(--panel);border-radius:14px;margin:12px 0}
-  .err{color:var(--bad)}
-  .small{font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
+:root{color-scheme:light dark;--bg:light-dark(#F4F5F7,#0F1216);--card:light-dark(#FFFFFF,#181C22);--ink:light-dark(#121620,#E8EBEF);--mut:light-dark(#5B6472,#9AA3AF);--line:light-dark(#DDE1E6,#2A3039);--soft:light-dark(#EEF1F5,#222830);--blue:light-dark(#1D4ED8,#6E9BFF);--blueSoft:light-dark(#E8EEFD,#1A2747);--or:light-dark(#C2410C,#FF8B5C);--orSoft:light-dark(#FDEEE6,#3A2118);--multi:light-dark(#FBF3EE,#221A16);--ok:light-dark(#0F7A55,#4FD39C);--okSoft:light-dark(#E3F4EC,#14302A)}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 'IBM Plex Sans KR',system-ui,sans-serif;min-height:100vh}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:700;padding:0 14px}
+button.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+button.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+button:disabled{opacity:.4}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.top{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.top b{font-size:15px}.clock{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#C9A227;margin-right:6px}.dot.ok{background:var(--ok)}.dot.bad{background:var(--or)}
+main{max-width:760px;margin:0 auto;padding:14px 14px 40px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.sub{color:var(--mut);font-size:13px}
+h2{font-size:20px;margin:2px 0}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.big{font-size:20px;font-weight:700}
+.warn{background:var(--orSoft);color:var(--or);border-radius:12px;padding:10px 12px;font-weight:600;font-size:14px}
+.note{background:var(--blueSoft);color:var(--blue);border-radius:12px;padding:10px 12px;font-size:14px}
+.grp{border-radius:16px;padding:10px;background:var(--soft)}.grp.mu{background:var(--multi)}
+.grp h3{font-size:13px;margin:0 4px 8px;color:var(--mut)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:84px;padding:12px;text-align:left;font-weight:400}
+.opt b{font-size:18px}.opt .p{font-size:18px;font-weight:700;margin-top:auto}.opt.sel{background:var(--blue);border-color:var(--blue);color:#fff}.opt.sel .sub{color:#DCE5FB}
+.person{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.person .n{flex:1}.person b{font-size:16px}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--orSoft);color:var(--or)}
+.tag.g{background:var(--okSoft);color:var(--ok)}.tag.b{background:var(--blueSoft);color:var(--blue)}
+.seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.seats button{min-height:48px;padding:0;font-size:17px}
+.seats button.sel{background:var(--blue);border-color:var(--blue);color:#fff}
+.seats button.taken{opacity:.3}
+.role{border:2px dashed var(--line);border-radius:16px;padding:14px;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none;background:var(--card)}
+.role.show{border-style:solid;border-color:var(--or)}
+.role .nm{font-size:24px;font-weight:700}
+input.txt{width:100%;min-height:48px;border:1px solid var(--line);border-radius:12px;padding:0 12px;font-size:17px;background:var(--card)}
+.ov{position:fixed;inset:0;background:rgba(10,12,16,.5);z-index:20;display:flex;align-items:center;justify-content:center;padding:12px}
+.sheet{width:100%;max-width:640px;max-height:calc(100vh - 24px);overflow:auto;background:var(--bg);border-radius:20px;display:flex;flex-direction:column}
+.sheet .bd{padding:16px;display:flex;flex-direction:column;gap:8px}
+.tc{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 12px;font-weight:400;width:100%}
+.tc .e{font-size:28px;width:36px;text-align:center}.tc b{font-size:16px}
+.det{background:var(--card);border-radius:20px;padding:18px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:8px}
+.verdict{background:var(--ink);color:var(--bg);border-radius:18px;padding:18px}
 </style>
 </head>
 <body>
-<div class="top"><div><span class="dot" id="dot"></span><span id="conn">연결 중…</span></div><div id="me"></div></div>
+<div class="top"><div><span class="dot" id="dot"></span><b id="who">바이러스 게임</b> <span class="sub" id="sub"></span></div><div class="clock" id="clock"></div></div>
 <main id="app"></main>
-
+<div id="layer"></div>
 <script>
-const PREFIX = 'onlyclass-v1-';
+{
+const SLIDES = [
+      { e: '🦠', title: '바이러스 게임', sub: '7라운드 동안 감염병을 피하거나, 퍼뜨려요', groups: [{ items: [
+        ['🙂', '일반 시민', '게임이 끝날 때 감염되지 않고', '⭐ 15점 이상이면 승리', ['감염되지 않은 일반 시민은 모두 승리할 수 있어요.', '감염되지 않았어도 15점보다 낮으면 패배예요.', '기준 점수는 참가 인원에 따라 조금씩 달라져요.', '⭐ 점수 얻는 법 ①  학교: 갈 때마다 +1 → +2 → +3…', '⭐ 점수 얻는 법 ②  노래방 · PC방 · 식당: 장소마다 첫 방문 +3, 이후 +2', '⭐ 점수 얻는 법 ③  접촉: 성사될 때마다 +1', '⚠️ 1~3라운드, 4~6라운드에 학교를 못 가면 각각 −10점 · 집 · 병원은 0점', '감염돼도 병원에서 치료받으면 다시 감염 안 된 상태가 돼요.']],
+        ['🦠', '최초 감염자', '게임이 끝날 때 감염자가', '과반(24명 중 13명) 이상이면 승리', ['점수와 상관없이 감염자 수로만 승패가 정해져요.', '1라운드에는 증상이 없어요.', '병원에 가면 증상이 감기 수준으로 줄지만, 병원체는 그대로예요.']],
+        ['🛡️', '방역 팀', '연구원 · 검사원 · 방역 경찰 · 방역관', '감염자가 과반보다 적으면 승리', ['점수와 상관없이 감염자 수로 승패가 정해져요.', '각자의 능력으로 감염 확산을 막으세요.']]
+      ] }] },
+      { e: '🔁', title: '한 라운드는 이렇게', groups: [{ items: [
+        ['📍', '① 장소 고르기', '60초 동안 갈 곳을 골라요', '시간이 끝나면 자동으로 이동', ['시간 안에는 몇 번이든 바꿀 수 있어요.', '장소마다 받는 점수가 달라요.', '증상이 있다면 집이나 병원도 생각해 보세요.']],
+        ['📺', '② 동선 공개', '누가 어디로 갔는지', 'TV에 모두 공개돼요', ['장소는 모두가 볼 수 있어요.', '증상은 같은 장소에 있는 친구에게만 보여요.', '1 · 3 · 5라운드에는 감염자 수도 공개돼요.']],
+        ['🤝', '③ 상호작용', '60초 동안 같은 장소 친구와', '접촉하고 능력을 써요', ['접촉이 성사되면 둘 다 +1점이에요.', '역할이 있는 친구는 이때 능력을 써요.']],
+        ['🔁', '7라운드 반복', '7라운드가 끝나면', '결과를 발표해요', ['7라운드에는 모두 학교에 모이고, 접촉은 없어요.', '최종 감염자 수와 점수로 승패가 정해져요.']]
+      ] }] },
+      { e: '📍', title: '장소', groups: [
+        { label: '특수 장소', items: [
+          ['🏠', '집', '0점 · 자가격리', '아무와도 접촉하지 않아요', ['집에 있으면 증상이 1개씩 사라져요.', '감기는 증상이 다 사라지면 나아요.', '감염병은 증상이 다 사라지면 잠복기(무증상)로 돌아가요. 병원체는 남아 있어서 계속 옮길 수 있어요.', '방역 경찰에게 지목되면 강제로 집에 있어요.']],
+          ['🏫', '학교', '갈 때마다 +1 → +2 → +3…', '1~3R, 4~6R에 1번씩 꼭!', ['학교에서도 친구와 접촉할 수 있어요.', '등교 의무를 못 지키면 최종 점수 −10점이에요.', '7라운드에는 모두 학교에 와요.']],
+          ['🏥', '병원', '0점 · 모든 질병 치료', '병상 4개 · 증상 많은 순서로 입원', ['병상보다 사람이 많으면 증상이 많은 사람부터 들어가요. 증상 수가 같으면 무작위예요.', '병상이 없어 못 들어간 사람은 집으로 가요.', '치료는 그 라운드가 끝날 때 돼요.', '연구원은 병원에서 백신을 만들어요.', '최초 감염자는 증상만 감기 수준으로 줄고, 병원체는 남아요.']]
+        ] },
+        { label: '다중이용시설', multi: true, items: [
+          ['🎤', '노래방', '첫 방문 +3 · 이후 +2', '사람이 몰려 접촉이 많아요', ['장소마다 첫 방문 보너스가 따로 있어요.', '사람이 많을수록 접촉 점수도, 감염 위험도 커져요.']],
+          ['🖥️', 'PC방', '첫 방문 +3 · 이후 +2', '사람이 몰려 접촉이 많아요', ['장소마다 첫 방문 보너스가 따로 있어요.', '사람이 많을수록 접촉 점수도, 감염 위험도 커져요.']],
+          ['🍜', '식당', '첫 방문 +3 · 이후 +2', '사람이 몰려 접촉이 많아요', ['장소마다 첫 방문 보너스가 따로 있어요.', '사람이 많을수록 접촉 점수도, 감염 위험도 커져요.']]
+        ] }] },
+      { e: '🏫', title: '등교 규칙', groups: [{ items: [
+        ['1️⃣', '1~3라운드', '이 중 1번은 꼭 학교에 가요', '3라운드가 마지막 기회', ['1, 2, 3라운드 중 언제 가도 괜찮아요.', '두 번 이상 가면 학교 점수가 계속 올라가요.']],
+        ['2️⃣', '4~6라운드', '이 중 1번은 꼭 학교에 가요', '6라운드가 마지막 기회', ['4, 5, 6라운드 중 언제 가도 괜찮아요.', '학교 점수는 1~3라운드 방문 횟수에 이어서 올라가요.']],
+        ['🎒', '7라운드', '모두 학교에 모여요', '접촉 없이 결과 발표', ['7라운드 학교 방문도 점수에 들어가요.', '이 라운드에는 접촉과 능력을 쓸 수 없어요.']],
+        ['⚠️', '못 지키면', '최종 점수 −10점', '강제 자가격리는 출석 인정', ['방역 경찰에게 지목돼 집에 있었던 라운드는 등교한 것으로 쳐요.', '아파서 집이나 병원에 간 라운드는 인정되지 않아요.']]
+      ] }] },
+      { e: '🤝', title: '접촉', groups: [{ items: [
+        ['🙋', '요청하기', '같은 장소에 있는 친구에게', '접촉을 요청해요', ['한 라운드에 여러 명과 접촉할 수 있어요.', '같은 친구와는 라운드당 1번만 가능해요.']],
+        ['👍', '수락 · 거절', '수락하면 둘 다 ⭐ +1점', '거절하면 아무 일도 없어요', ['증상이 보이는 친구의 요청은 거절할 수도 있어요.', '집에서는 접촉할 수 없어요.']],
+        ['🤧', '병이 옮아요', '감기 · 감염병 친구와 접촉하면', '나도 걸릴 수 있어요', ['감염병은 증상이 없는 잠복기에도 옮아요.', '감기도 접촉으로 옮아요.', '증상은 접촉한 다음 라운드부터 나타나요.']]
+      ] }] },
+      { e: '🤒', title: '증상', sub: '감기와 감염병은 처음 증상이 똑같아요!', groups: [{ items: [
+        ['🤧', '감기', '기침 · 오한 · 고열 중 하나씩', '3개가 모두 나오면 자연 회복', ['집이나 병원에 가지 않으면 증상이 하나씩 늘어요.', '매 라운드 몇 명씩 새로 감기에 걸려요.']],
+        ['🦠', '감염병', '처음엔 감기와 같은 증상', '심해지면 근육통 · 구역질', ['근육통과 구역질은 감염병에만 나타나요.', '집이나 병원에 가지 않으면 증상이 늘어요.']],
+        ['😶', '잠복기', '감염된 다음 라운드에는', '증상이 전혀 없어요', ['잠복기에도 다른 사람에게 옮길 수 있어요.', '신속항원검사로는 찾을 수 없어요.']],
+        ['🏥', '대처법', '집: 증상이 1개씩 사라져요', '병원: 모든 질병이 나아요 (병상 4개)', ['집에서 증상이 다 사라지면 감기는 낫고, 감염병은 잠복기로 돌아가요.', '잠복기로 돌아가도 병원체는 남아 있어요. 완전히 나으려면 병원에 가야 해요.', '병원은 점수가 0점이지만 확실히 치료돼요.', '환자가 한꺼번에 몰리면 병상이 모자라 치료를 못 받을 수 있어요.']]
+      ] }] },
+      { e: '🧪', title: '검사', groups: [{ items: [
+        ['⚡', '신속항원검사', '게임 전체에서 1번, 언제든 사용 가능', '잠복기에는 검출되지 않아요', ['결과가 바로 나오고, 나만 볼 수 있어요.', '감염병이면 양성, 감기는 음성이에요.', '음성이어도 잠복기라서 안 잡힌 것일 수 있어요.']],
+        ['🔬', '유전자 증폭 검사', '진단 검사원이 매 라운드 1명 지목', '잠복기 감염자도 찾아내요', ['결과는 다음 라운드에 모두에게 공개돼요.', '정확하지만 결과가 나오기까지 시간이 걸려요.']]
+      ] }] },
+      { e: '🎭', title: '역할', groups: [{ items: [
+        ['🦠', '최초 감염자', '병원체를 가지고 시작해요', '접촉으로 감염을 퍼뜨려요', ['1라운드에는 증상이 없어요.', '병원에 가면 증상이 감기 수준으로 줄어 숨기 쉬워져요.', '하지만 병원체는 그대로라 계속 옮길 수 있어요.']],
+        ['💉', '감염병 연구원', '병원에서 백신 1개를 만들어요', '다음 라운드, 다른 장소에서 1명 접종', ['백신은 예방용이에요. 접종하면 이후 감염되지 않아요.', '이미 감염된 사람은 백신으로 낫지 않아요.']],
+        ['🔬', '진단 검사원', '매 라운드 1명을 공개 지목', '유전자 증폭 검사 결과는 다음 라운드 공개', ['장소와 상관없이 누구든 지목할 수 있어요.', '잠복기 감염자도 찾아내요.']],
+        ['👮', '방역 경찰', '매 라운드 1명을 공개 지목', '다음 라운드에 강제 자가격리', ['같은 친구를 두 라운드 연속 지목할 수 없어요.', '강제 격리된 라운드는 등교로 인정돼요.']],
+        ['🚧', '방역관', '3라운드가 끝나면 감염이 가장 많았던', '다중이용시설 1곳을 4~6라운드 동안 폐쇄', ['1~3라운드 동안 어느 다중이용시설에서 감염이 가장 많았는지 방역관만 확인해요.', '폐쇄된 장소는 4, 5, 6라운드 동안 아무도 갈 수 없어요.', '7라운드에는 모두 학교에 가니 폐쇄와 상관없어요.']],
+        ['🙂', '일반 시민', '특별한 능력은 없어요', '장소 선택과 접촉으로 살아남기', ['감염되지 않고 15점 이상이면 승리해요.', '감염돼도 병원에 가면 나아요.']]
+      ] }] },
+      { e: '📢', title: '공개되는 정보', final: '준비됐나요? 🚀', groups: [{ items: [
+        ['🔢', '감염자 수', '1 · 3 · 5라운드 시작 때', '몇 명이 감염됐는지만 공개', ['누가 감염됐는지는 공개되지 않아요.', '숫자를 보고 추리해 보세요.']],
+        ['🗺️', '모두의 동선', '매 라운드', '누가 어디로 갔는지 공개', ['증상은 같은 장소 친구에게만 보여요.', '누가 누구와 접촉했는지는 비공개예요.']],
+        ['📣', '공개 지목', '검사원 · 경찰의 지목은 바로 공개', '검사 결과는 다음 라운드에 공개', ['신속항원검사 결과는 본인만 봐요.']],
+        ['🚧', '장소 폐쇄', '4라운드 시작 때 공개', '어디가 문을 닫았는지 모두 알아요', ['방역관이 폐쇄한 다중이용시설은 4~6라운드 동안 고를 수 없어요.']]
+      ] }] }
+    ];
+const PREFIX = 'virus-v1-';
+const PL = {home:'집', school:'학교', hosp:'병원', kara:'노래방', pc:'PC방', food:'식당'};
+const ROLE = {carrier:'최초 감염자', researcher:'감염병 연구원', tester:'감염병 진단 검사원', police:'방역 경찰', officer:'방역관', citizen:'일반 시민'};
+const RISKY = ['kara', 'pc', 'food'];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const del = (k) => { try { localStorage.removeItem(k); } catch (e) {} };
 const params = new URLSearchParams(location.search);
-let room = (params.get('room') || '').toUpperCase().trim();
-
-function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
-function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-function del(k){ try{ localStorage.removeItem(k); }catch(e){} }
-function esc(t){ return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-const app = document.getElementById('app');
-
-// 상태
-let me = room ? load('oc_player_' + room) : null;   // {seat, name, token}
-let G = { phase:'connecting', info:null, role:null, round:0, roster:[], submitted:false, reveal:null, pick:null, error:null };
+const room = (params.get('room') || '').toUpperCase().trim();
+let me = room ? load('vg_player_' + room) : null;
+let V = null, info = null, pickSeat = null, err = null, closedRoom = false;
 let peer = null, conn = null, reconTimer = null, failCount = 0, lastPing = 0, everJoined = false;
+let endAt = 0, holding = false, ptrDown = false, pending = false, lastJ = '';
+let pickTarget = null, localDet = null, rapidShown = false;
 
-// ---------- 방 코드 입력 ----------
-if(!room){
-  setConn('방 코드를 입력하세요', '');
-  app.innerHTML = `<h2>바이러스 게임</h2><p>TV에 보이는 4글자 방 코드를 입력하세요.</p>
-    <input id="rc" maxlength="4" placeholder="예: AB12" autocapitalize="characters">
-    <button id="go">들어가기</button>`;
-  document.getElementById('go').onclick = () => {
-    const v = document.getElementById('rc').value.toUpperCase().trim();
-    if(v.length === 4) location.href = location.pathname + '?room=' + v;
-  };
-} else {
-  start();
+function ROLE_DESC(role, cfg) {
+  return {
+    carrier: '병원체를 가지고 시작해요. 1라운드에는 증상이 없어요. 친구들과 접촉해 감염을 퍼뜨리세요. 병원에 가면 증상이 줄지만 병원체는 남아요.',
+    researcher: '병원에 있으면 다음 라운드에 쓸 백신을 1개 만들어요. 다른 장소에서 같은 장소에 있는 한 명에게 접종할 수 있어요. 백신은 예방용이에요.',
+    tester: '매 라운드 한 명을 공개 지목해 유전자 증폭 검사를 해요. 결과는 다음 라운드에 모두에게 공개돼요. 잠복기도 찾아내요.',
+    police: '매 라운드 한 명을 공개 지목하면, 그 친구는 다음 라운드에 강제로 자가격리돼요. 같은 친구를 연속으로 지목할 수 없어요.',
+    officer: '3라운드가 끝나면 1~3라운드 동안 감염이 가장 많이 일어난 다중이용시설을 확인하고, 4~6라운드 동안 폐쇄할 수 있어요.',
+    citizen: '장소를 돌아다니며 점수를 모으세요. 감염을 피하고, 감염됐다면 치료를 받으세요.'
+  }[role];
 }
+function WIN(role, cfg) {
+  if (role === 'carrier') return '게임이 끝날 때 감염자 ' + cfg.line + '명 이상 (' + cfg.lineName + ')';
+  if (role === 'citizen') return '감염되지 않고 ' + cfg.win + '점 이상';
+  return '게임이 끝날 때 감염자 ' + (cfg.line - 1) + '명 이하';
+}
+const tx = (s) => { const c = V && V.cfg; if (!c) return s; return String(s).replace(/병상 4개/g, '병상 ' + c.beds + '개').replace(/15점/g, c.win + '점').replace(/과반\(24명 중 13명\)/g, c.lineName + '(' + c.n + '명 중 ' + c.line + '명)').replace(/과반 이상/g, c.lineName + ' 이상').replace(/과반보다 적으면/g, c.lineName + '보다 적으면'); };
 
 // ---------- 연결 ----------
-function setConn(text, kind){
-  document.getElementById('conn').textContent = text;
-  document.getElementById('dot').className = 'dot ' + (kind||'');
-}
-
-function start(){ ensurePeer(); }
-
-function ensurePeer(){
-  if(peer && !peer.destroyed && !peer.disconnected && peer.open){ connectToHost(); return; }
-  try{ peer && peer.destroy(); }catch(e){}
-  setConn('서버 연결 중…');
-  peer = new Peer({ debug: 1 });
+function setConn(kind) { $('dot').className = 'dot ' + (kind || ''); }
+function ensurePeer() {
+  if (peer && !peer.destroyed && !peer.disconnected && peer.open) { connectToHost(); return; }
+  try { peer && peer.destroy(); } catch (e) {}
+  setConn('');
+  peer = new Peer({debug:1});
   peer.on('open', () => connectToHost());
-  // 중계 서버와만 끊긴 경우: 선생님과의 직접 연결은 살아 있을 수 있으니 서버만 다시 붙기
-  peer.on('disconnected', () => { setTimeout(() => { try{ if(peer && !peer.destroyed) peer.reconnect(); }catch(e){} }, 1000); });
-  peer.on('error', e => {
-    if(e.type === 'peer-unavailable'){
-      failCount++;
-      showError(failCount >= 3 ? '방을 찾을 수 없어요. 방 코드가 맞는지, 선생님 화면이 켜져 있는지 확인하세요.' : null);
-      scheduleReconnect(3000);
-    } else if(['network','server-error','socket-error','socket-closed'].includes(e.type)){
-      failCount++;
-      showError(failCount >= 3 ? '인터넷 연결이 불안정해요. 와이파이 ↔ 데이터를 바꿔 보세요.' : null);
-      scheduleReconnect(3000);
-    } else {
-      scheduleReconnect(3000);
-    }
+  peer.on('disconnected', () => { setTimeout(() => { try { if (peer && !peer.destroyed) peer.reconnect(); } catch (e) {} }, 1000); });
+  peer.on('error', (e) => {
+    failCount++;
+    if (e.type === 'peer-unavailable') showErr(failCount >= 3 ? '방을 찾을 수 없어요. 방 코드가 맞는지, 선생님 화면이 켜져 있는지 확인하세요.' : null);
+    else if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(e.type)) showErr(failCount >= 3 ? '인터넷 연결이 불안정해요. 와이파이 ↔ 데이터를 바꿔 보세요.' : null);
+    scheduleReconnect(3000);
   });
 }
-
-function connectToHost(){
-  if(conn){ try{ conn.close(); }catch(e){} }
-  setConn(everJoined ? '다시 연결 중…' : '방에 들어가는 중…');
-  const c = peer.connect(PREFIX + room, { reliable: true });
-  conn = c;
+function connectToHost() {
+  if (conn) { try { conn.close(); } catch (e) {} }
+  const c = peer.connect(PREFIX + room, {reliable:true}); conn = c;
   let opened = false;
-  const timeout = setTimeout(() => {
-    if(!opened && c === conn){
-      failCount++;
-      showError(failCount >= 3 ? '연결이 계속 안 돼요. 와이파이 ↔ 데이터를 바꾸고 새로고침해 보세요.' : null);
-      try{ c.close(); }catch(e){}
-      scheduleReconnect(1000);
-    }
-  }, 8000);
-  c.on('open', () => {
-    if(c !== conn) return;
-    opened = true; clearTimeout(timeout); failCount = 0; lastPing = Date.now();
-    G.error = null;
-    setConn('연결됨', 'ok');
-    if(me && me.seat) c.send({ t:'join', seat:me.seat, name:me.name, token:me.token });
-    else c.send({ t:'hello' });
-  });
-  c.on('data', d => { if(c === conn) onData(d); });
-  c.on('close', () => { if(c === conn){ setConn('끊김 · 다시 연결 중…', 'bad'); scheduleReconnect(1500); } });
-  c.on('error', () => { if(c === conn) scheduleReconnect(1500); });
+  const to = setTimeout(() => { if (!opened && c === conn) { failCount++; showErr(failCount >= 3 ? '연결이 계속 안 돼요. 와이파이 ↔ 데이터를 바꾸고 새로고침해 보세요.' : null); try { c.close(); } catch (e) {} scheduleReconnect(1000); } }, 8000);
+  c.on('open', () => { if (c !== conn) return; opened = true; clearTimeout(to); failCount = 0; lastPing = Date.now(); err = null; setConn('ok');
+    if (me && me.seat) c.send({t:'join', seat:me.seat, name:me.name, token:me.token}); else c.send({t:'hello'}); });
+  c.on('data', (d) => { if (c === conn) onData(d); });
+  c.on('close', () => { if (c === conn) { setConn('bad'); scheduleReconnect(1500); } });
+  c.on('error', () => { if (c === conn) scheduleReconnect(1500); });
 }
-
-function scheduleReconnect(delay){
-  if(reconTimer) return;
-  reconTimer = setTimeout(() => { reconTimer = null; ensurePeer(); }, delay);
-}
-
-// 선생님 쪽 신호가 끊기면 자동 재연결
-setInterval(() => {
-  if(me && everJoined && conn && conn.open && lastPing && Date.now() - lastPing > 10000){
-    setConn('응답 없음 · 다시 연결 중…', 'bad');
-    lastPing = Date.now();
-    try{ conn.close(); }catch(e){}
-    scheduleReconnect(500);
-  }
-}, 2000);
-
-// 화면을 다시 켰을 때
-document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible'){
-    keepAwake();
-    if(!conn || !conn.open) scheduleReconnect(200);
-  }
-});
-async function keepAwake(){ try{ if('wakeLock' in navigator) await navigator.wakeLock.request('screen'); }catch(e){} }
+function scheduleReconnect(ms) { if (reconTimer) return; reconTimer = setTimeout(() => { reconTimer = null; ensurePeer(); }, ms); }
+setInterval(() => { if (me && everJoined && conn && conn.open && lastPing && Date.now() - lastPing > 10000) { setConn('bad'); lastPing = Date.now(); try { conn.close(); } catch (e) {} scheduleReconnect(500); } }, 2000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { keepAwake(); if (!conn || !conn.open) scheduleReconnect(200); } });
+async function keepAwake() { try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch (e) {} }
 keepAwake();
+const send = (m) => { try { if (conn && conn.open) conn.send(m); } catch (e) {} };
+const act = (o) => send(Object.assign({t:'act'}, o));
+function showErr(m) { if (m) { err = m; render(true); } }
 
-function sendHost(msg){ try{ if(conn && conn.open) conn.send(msg); }catch(e){} }
-
-// ---------- 메시지 ----------
-function onData(d){
-  if(!d || typeof d !== 'object') return;
-  switch(d.t){
-    case 'ping': lastPing = Date.now(); sendHost({ t:'pong', ts:d.ts }); return;
-    case 'info': G.info = d; G.phase = 'pickSeat'; break;
-    case 'reject':
-      G.error = d.reason;
-      if(me){ del('oc_player_' + room); me = null; }
-      sendHost({ t:'hello' });
-      return render();
-    case 'welcome':
-      everJoined = true;
-      G.phase = d.phase; G.round = d.round; G.role = d.role; G.roster = d.roster || [];
-      G.submitted = d.submitted; G.reveal = d.reveal; G.error = null;
-      if(me){ me.name = d.name || me.name; save('oc_player_' + room, me); }
-      break;
-    case 'role': G.role = { role:d.role, desc:d.desc, partners:d.partners }; G.phase = 'roles'; break;
-    case 'round': G.phase = 'round'; G.round = d.round; G.roster = d.roster || G.roster; G.submitted = false; G.pick = null; G.reveal = null; break;
-    case 'reveal': G.phase = 'reveal'; G.reveal = d.text; break;
-    case 'reset': G.phase = 'lobby'; G.role = null; G.round = 0; G.submitted = false; G.reveal = null; break;
-    case 'kicked': del('oc_player_' + room); me = null; G = { ...G, phase:'pickSeat', role:null, error:'선생님이 자리를 비웠어요. 다시 자리를 골라 주세요.' }; sendHost({ t:'hello' }); break;
-    case 'closed': del('oc_player_' + room); me = null; G.phase = 'closed'; break;
+function onData(d) {
+  if (!d || typeof d !== 'object') return;
+  if (d.t === 'ping') { lastPing = Date.now(); send({t:'pong', ts:d.ts}); return; }
+  if (d.t === 'info') { info = d; render(true); return; }
+  if (d.t === 'reject') { err = d.reason; if (me) { del('vg_player_' + room); me = null; } send({t:'hello'}); render(true); return; }
+  if (d.t === 'welcome') { everJoined = true; err = null; if (me) save('vg_player_' + room, me); render(true); return; }
+  if (d.t === 'kicked') { del('vg_player_' + room); me = null; V = null; err = '선생님이 자리를 비웠어요. 다시 자리를 골라 주세요.'; send({t:'hello'}); render(true); return; }
+  if (d.t === 'closed') { del('vg_player_' + room); me = null; closedRoom = true; render(true); return; }
+  if (d.t === 'v') {
+    if (d.j === lastJ) return; lastJ = d.j;
+    const nv = JSON.parse(d.j);
+    if (V && (V.phase !== nv.phase || V.round !== nv.round)) { pickTarget = null; }
+    V = nv; endAt = (V.left != null && !V.paused) ? Date.now() + V.left * 1000 : 0;
+    render(false);
   }
-  render();
 }
 
-function showError(msg){ if(msg){ G.error = msg; render(); } }
+// ---------- 시계 ----------
+setInterval(() => {
+  const el = $('clock');
+  if (!V || V.left == null) { el.textContent = ''; return; }
+  const left = V.paused ? V.left : Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+  el.textContent = (V.paused ? '⏸ ' : '') + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+}, 250);
 
 // ---------- 화면 ----------
-function render(){
-  document.getElementById('me').textContent = me && me.seat ? `${me.seat}번 ${me.name||''}` : '';
-  const err = G.error ? `<p class="err">${esc(G.error)}</p>` : '';
+document.addEventListener('pointerdown', () => { ptrDown = true; });
+document.addEventListener('pointerup', () => { setTimeout(() => { ptrDown = false; if (pending) render(true); }, 0); });
+function render(force) {
+  if (ptrDown && !force) { pending = true; return; }
+  pending = false;
+  if (!room) return renderRoomInput();
+  if (closedRoom) { $('app').innerHTML = '<div class="card"><h2>방이 닫혔어요</h2><div class="sub">선생님이 새 방을 만들었어요. TV의 새 QR을 찍어 주세요.</div></div>'; return; }
+  const e = err ? '<div class="warn">' + esc(err) + '</div>' : '';
+  if (!me || !everJoined) { $('who').textContent = '바이러스 게임'; $('sub').textContent = '방 ' + room; $('app').innerHTML = e + seatPicker(); renderLayer(); return; }
+  if (!V) { $('app').innerHTML = e + '<div class="card"><h2>들어가는 중…</h2></div>'; return; }
+  const m = V.me;
+  $('who').textContent = V.seat + '번 ' + (m ? m.name : (V.name || ''));
+  $('sub').textContent = V.phase === 'lobby' ? '대기 중' : (V.round ? V.round + 'R' : '') + (m ? ' · ⭐ ' + m.score + '점' : '');
+  let h = e;
+  if (V.phase === 'lobby') h += '<div class="card" style="text-align:center"><div style="font-size:44px">✅</div><h2>' + V.seat + '번 자리로 들어왔어요</h2><div class="sub">선생님이 시작할 때까지 기다려 주세요</div></div><button data-a="leave" style="margin-top:20px">자리 다시 고르기</button>';
+  else if (V.phase === 'nogame') h += '<div class="card"><h2>이 자리는 이번 게임에 없어요</h2><div class="sub">선생님께 자리 번호를 확인해 주세요.</div></div>';
+  else {
+    h += roleBox() + status() + anns();
+    if (V.phase === 'place') h += placeView();
+    else if (V.phase === 'interact') h += interactView();
+    else if (V.phase === 'officer') h += officerView();
+    else if (V.phase === 'final') h += '<div class="card"><h2>7라운드 · 모두 학교에 모였어요 🎒</h2><div class="sub">오늘은 접촉 없이 결과를 기다려요. 학교 점수 +' + m.schN + '점을 받았어요.</div>' + (V.pen ? '<div class="warn" style="margin-top:8px">등교 의무를 못 지켜서 최종 점수에서 −' + V.pen + '점이 빠져요.</div>' : '') + '</div>';
+    else if (V.phase === 'result') h += resultView();
+  }
+  $('app').innerHTML = h;
+  renderLayer();
+}
 
-  if(G.phase === 'connecting'){
-    app.innerHTML = `<h2>방에 들어가는 중…</h2><p>방 코드 <b>${esc(room)}</b></p>${err}`;
-    return;
-  }
-  if(G.phase === 'closed'){
-    app.innerHTML = `<h2>방이 닫혔어요</h2><p>선생님이 새 방을 만들었어요. TV의 새 QR을 찍어 주세요.</p>`;
-    return;
-  }
-  if(G.phase === 'pickSeat' || !me){
-    const max = (G.info && G.info.maxSeats) || 27;
-    const taken = (G.info && G.info.taken) || [];
-    let cells = '';
-    for(let n=1;n<=max;n++) cells += `<div data-n="${n}" class="${taken.includes(n)?'taken':''} ${G.pick===n?'sel':''}">${n}</div>`;
-    app.innerHTML = `<h2>자리 번호를 고르세요</h2><p>선생님이 정해 준 번호(출석 번호)를 누르세요.</p>${err}
-      <div class="seats" id="seats">${cells}</div>
-      <input id="nm" maxlength="10" placeholder="이름 (선택)">
-      <button id="ok" ${G.pick?'':'disabled'}>${G.pick ? G.pick + '번으로 들어가기' : '번호를 고르세요'}</button>`;
-    document.querySelectorAll('#seats div').forEach(el => el.onclick = () => {
-      const n = Number(el.dataset.n);
-      if(taken.includes(n)) return;
-      const nm = document.getElementById('nm').value;
-      G.pick = n; render(); document.getElementById('nm').value = nm;
+function renderRoomInput() {
+  $('app').innerHTML = '<div class="card"><h2>바이러스 게임</h2><div class="sub">TV에 보이는 4글자 방 코드를 입력하세요.</div><input class="txt" id="rc" maxlength="4" placeholder="AB12" autocapitalize="characters" style="margin:10px 0"><button class="pri" data-a="room" style="width:100%">들어가기</button></div>';
+}
+function seatPicker() {
+  const n = (info && info.n) || 27, taken = (info && info.taken) || [];
+  let s = '';
+  for (let i = 1; i <= n; i++) s += '<button class="' + (taken.includes(i) ? 'taken' : '') + (pickSeat === i ? ' sel' : '') + '" data-seat="' + i + '">' + i + '</button>';
+  return '<div class="card"><h2>자리 번호를 고르세요</h2><div class="sub" style="margin-bottom:10px">선생님이 정해 준 번호(출석 번호)를 누르세요.</div><div class="seats">' + s + '</div>' +
+    '<label class="sub" style="display:block;margin-top:12px">이름 (선택)<input class="txt" id="nm" maxlength="10" value="' + esc((me && me.name) || '') + '"></label>' +
+    '<button class="pri" data-a="join" style="width:100%;margin-top:10px"' + (pickSeat ? '' : ' disabled') + '>' + (pickSeat ? pickSeat + '번으로 들어가기' : '번호를 고르세요') + '</button>' +
+    (info && info.started ? '<div class="sub" style="margin-top:8px">게임이 이미 시작됐어요. 들어가면 내 번호 자리의 AI 대신 이어서 플레이해요.</div>' : '') + '</div>';
+}
+function roleBox() {
+  const m = V.me;
+  return '<div class="role' + (holding ? ' show' : '') + '" data-hold="1">' + (holding
+    ? '<div class="sub">내 역할</div><div class="nm" style="color:' + (m.role === 'carrier' ? 'var(--or)' : 'var(--ink)') + '">' + ROLE[m.role] + '</div><div style="font-size:14px;margin-top:6px">' + ROLE_DESC(m.role, V.cfg) + '</div><div class="sub" style="margin-top:6px">승리 조건: ' + WIN(m.role, V.cfg) + '</div>' + (m.partners && m.partners.length ? '<div class="sub">다른 최초 감염자: ' + m.partners.join(', ') + '번</div>' : '') + (m.role === 'researcher' ? '<div class="sub">보유 백신 ' + m.vaccine + '개</div>' : '')
+    : '<div class="sub">내 역할 · 꾹 누르고 있으면 보여요 🤫</div>') + '</div>';
+}
+function status() {
+  const m = V.me, sym = m.sym;
+  const rapidBtn = m.rapid ? '<span class="tag ' + (m.rapid.res === '양성' ? '' : 'g') + '">신속항원 ' + m.rapid.res + ' (' + m.rapid.r + 'R)</span>' : '<button data-a="rapid" style="min-height:40px">⚡ 신속항원검사 (1회)</button>';
+  return '<div class="card"><div class="row"><div><div class="sub">내 증상</div><div class="big" style="color:' + (sym.length ? 'var(--or)' : 'var(--ink)') + '">' + (sym.length ? sym.join(' · ') : '없음') + '</div></div>' + (['place', 'interact', 'officer'].includes(V.phase) || m.rapid ? rapidBtn : '') + '</div>' +
+    '<div class="sub" style="margin-top:6px">등교 1~3R ' + (m.sch1 ? '✅' : '⬜') + ' · 4~6R ' + (m.sch2 ? '✅' : '⬜') + ' · 학교 방문 ' + m.schN + '번</div></div>';
+}
+function anns() {
+  const a = V.ann || {}, out = [];
+  if (a.infected != null) out.push('<div class="card" style="background:var(--ink);color:var(--bg);border-color:var(--ink)"><div style="opacity:.75;font-size:13px">' + V.round + '라운드 감염자 수 공개</div><div class="big">현재 감염자 ' + a.infected + '명</div></div>');
+  if (a.pcr) out.push('<div class="card"><div class="sub">유전자 증폭 검사 결과</div><div class="big">' + a.pcr.no + '번 ' + esc(a.pcr.name) + ' <span class="tag ' + (a.pcr.pos ? '' : 'g') + '">' + (a.pcr.pos ? '양성' : '음성') + '</span></div></div>');
+  if (a.police) out.push('<div class="card"><div class="sub">방역 경찰 지목 · 이번 라운드 강제 자가격리</div><div class="big">' + a.police.no + '번 ' + esc(a.police.name) + '</div></div>');
+  if (a.closed) out.push('<div class="card"><div class="sub">방역관 조치 · 4~6라운드</div><div class="big">🚧 ' + PL[a.closed] + ' 폐쇄 중</div></div>');
+  return out.join('');
+}
+function placeView() {
+  const m = V.me, r = V.round;
+  if (m.forced) return '<div class="card" style="text-align:center"><div style="font-size:44px">🏠</div><h2>강제 자가격리 중</h2><div class="sub">방역 경찰의 지목으로 이번 라운드는 집에 있어요. 등교한 것으로 인정돼요.</div></div>';
+  let warn = '';
+  if (r === 3 && !m.sch1) warn = '<div class="warn">1~3라운드 등교를 아직 안 했어요. 이번이 마지막 기회예요! (못 가면 −10점)</div>';
+  if (r === 6 && !m.sch2) warn = '<div class="warn">4~6라운드 등교를 아직 안 했어요. 이번이 마지막 기회예요! (못 가면 −10점)</div>';
+  const opt = (id, sub, pts) => { const closed = V.ann && V.ann.closed === id;
+    return '<button class="opt' + (V.choice === id ? ' sel' : '') + '" data-place="' + id + '"' + (closed ? ' disabled' : '') + '><b>' + PL[id] + '</b><span class="sub">' + (closed ? '🚧 폐쇄 중' : sub) + '</span><span class="p">' + (closed ? '' : pts) + '</span></button>'; };
+  const vis = (id) => m.visits.includes(id);
+  return warn + '<h2>어디로 갈까요? 📍</h2>' +
+    '<div class="grp"><h3>특수 장소</h3><div class="opts">' + opt('home', '자가격리 · 증상 1개씩 회복', '+0') + opt('school', (m.schN + 1) + '번째 방문 · 갈수록 증가', '+' + (m.schN + 1)) + opt('hosp', '모든 질병 치료 · 병상 ' + V.cfg.beds + '개', '+0') + '</div></div>' +
+    '<div class="grp mu"><h3>다중이용시설</h3><div class="opts">' + RISKY.map((id) => opt(id, vis(id) ? '가 본 적 있음' : '첫 방문', vis(id) ? '+2' : '+3')).join('') + '</div></div>' +
+    '<div class="note">' + (V.choice ? '✅ ' + PL[V.choice] + '(으)로 가요. 시간이 끝나기 전까지 바꿀 수 있어요.' : '시간이 끝나면 고른 곳으로 이동해요. 고르지 않으면 집으로 가요.') + '</div>';
+}
+function interactView() {
+  const m = V.me, l = V.place;
+  let h = '<div class="card"><div class="row"><h2>' + PL[l] + '</h2><span class="sub">이번 라운드 접촉 ' + V.myC + '회</span></div>';
+  if (m.bedless) h += '<div class="warn" style="margin-top:6px">병상이 부족해서 병원에 못 들어가고 집으로 왔어요.</div>';
+  if (m.noChoice) h += '<div class="warn" style="margin-top:6px">장소를 고르지 않아서 집으로 왔어요.</div>';
+  if (l === 'home') h += '<div class="sub" style="margin-top:6px">집에서 쉬는 중이에요. 아무와도 접촉하지 않아요. 증상이 1개 줄어들어요.</div></div>';
+  else {
+    h += '<div class="sub" style="margin:4px 0 8px">접촉이 성사되면 둘 다 +1점. 증상이 있는 친구와 접촉하면 병이 옮을 수 있어요.</div><div style="display:flex;flex-direction:column;gap:6px">';
+    if (!V.here.length) h += '<div class="sub">이 장소에는 나 혼자예요.</div>';
+    V.here.forEach((p) => {
+      let btn = '';
+      if (p.st === '') btn = '<button class="pri" data-req="' + p.i + '">🤝 접촉 요청</button>';
+      else if (p.st === 'out') btn = '<span class="sub">응답 기다리는 중…</span>';
+      else if (p.st === 'in') btn = '<span style="display:flex;gap:6px"><button class="ok" data-resp="' + p.req + '" data-ok="1">수락</button><button data-resp="' + p.req + '" data-ok="0">거절</button></span>';
+      else if (p.st === 'done') btn = '<span class="tag g">접촉 완료 +1</span>';
+      else btn = '<span class="sub">이번 라운드 끝</span>';
+      h += '<div class="person"><div class="n"><b>' + p.no + ' ' + esc(p.name) + '</b> ' + (p.pos ? '<span class="tag">양성</span>' : '') + '<div class="sub" style="color:' + (p.sym.length ? 'var(--or)' : 'var(--mut)') + '">' + (p.sym.length ? '증상: ' + p.sym.join(' · ') : '증상 없음') + '</div></div>' + btn + '</div>';
     });
-    document.getElementById('ok').onclick = () => {
-      const name = document.getElementById('nm').value.trim();
-      me = { seat:G.pick, name, token: Math.random().toString(36).slice(2) + Date.now().toString(36) };
-      save('oc_player_' + room, me);
-      G.error = null;
-      sendHost({ t:'join', seat:me.seat, name, token:me.token });
-    };
-    return;
+    h += '</div></div>';
   }
-
-  let html = err;
-  if(G.role) html += roleCard();
-
-  if(G.phase === 'lobby'){
-    html += `<div class="big">✅ ${me.seat}번 자리로 들어왔어요<br><span style="font-size:14px;color:var(--muted)">선생님이 시작할 때까지 기다려 주세요</span></div>`;
-  } else if(G.phase === 'roles'){
-    html += `<div class="big">위 카드를 <b>꾹 누르고 있으면</b> 내 역할이 보여요.<br><span style="font-size:14px;color:var(--muted)">옆 친구에게 보이지 않게 조심!</span></div>`;
-  } else if(G.phase === 'round'){
-    if(G.submitted){
-      html += `<div class="big">라운드 ${G.round} · 제출 완료 ✅<br><span style="font-size:14px;color:var(--muted)">다른 친구들을 기다리는 중</span></div>`;
-    } else {
-      const others = G.roster.filter(r => r.seat !== me.seat);
-      let cells = others.map(r => `<div data-n="${r.seat}" class="${G.pick===r.seat?'sel':''}">${r.seat}</div>`).join('');
-      html += `<h2>라운드 ${G.round}</h2><p>대상 한 명을 고르세요. (테스트: 모든 역할이 똑같이 한 명을 골라요)</p>
-        <div class="seats" id="tg">${cells}</div>
-        <button id="sub" ${G.pick?'':'disabled'}>${G.pick ? G.pick + '번 선택하고 제출' : '대상을 고르세요'}</button>`;
-    }
-  } else if(G.phase === 'reveal'){
-    html += `<div class="big">${esc(G.reveal || '')}</div>`;
+  h += ability();
+  if (V.noms && V.noms.length) h += '<div class="card"><b>공개 지목</b>' + V.noms.map((n) => '<div class="row" style="margin-top:6px"><span>' + (n.kind === 'pcr' ? '🔬 유전자 증폭 검사' : '👮 다음 라운드 자가격리') + '</span><b>' + n.no + '번 ' + esc(n.name) + '</b></div>').join('') + '</div>';
+  return h;
+}
+function ability() {
+  const m = V.me, l = V.place;
+  if (m.role === 'researcher') {
+    if (l === 'hosp') return '<div class="card"><b>💉 백신 연구</b><div class="sub">병원에 있으니 라운드가 끝나면 백신 1개가 생겨요.</div></div>';
+    if (!m.vaccine) return '<div class="card"><b>💉 백신 0개</b><div class="sub">병원에 가면 다음 라운드에 쓸 백신을 만들어요.</div></div>';
+    if (l === 'home' || !V.here.length) return '<div class="card"><b>💉 백신 1개 보유</b><div class="sub">다른 친구가 있는 장소에서 접종할 수 있어요.</div></div>';
+    return '<div class="card"><b>💉 백신 접종 (1개)</b><div class="sub" style="margin-bottom:6px">백신은 예방용이에요. 접종한 친구는 이후 감염병에 걸리지 않아요.</div><div style="display:flex;flex-wrap:wrap;gap:6px">' +
+      V.here.map((p) => '<button data-vacc="' + p.i + '"' + (p.vacc ? ' disabled' : '') + '>' + p.no + ' ' + esc(p.name) + (p.vacc ? ' (접종함)' : '') + '</button>').join('') + '</div></div>';
   }
-  html += `<button class="ghost" id="leave" style="margin-top:28px">자리 다시 고르기</button>
-           <div class="small">화면이 꺼져도 다시 켜면 자동으로 이어져요.</div>`;
-  app.innerHTML = html;
-
-  if(G.role) bindCard();
-  const tg = document.getElementById('tg');
-  if(tg) tg.querySelectorAll('div').forEach(el => el.onclick = () => { G.pick = Number(el.dataset.n); render(); });
-  const sub = document.getElementById('sub');
-  if(sub) sub.onclick = () => {
-    if(!G.pick) return;
-    sendHost({ t:'submit', round:G.round, target:G.pick });
-    G.submitted = true; render();
-  };
-  document.getElementById('leave').onclick = () => {
-    if(!confirm('지금 자리에서 나가고 다시 고를까요?')) return;
-    del('oc_player_' + room); location.reload();
-  };
+  if (m.role === 'tester' || m.role === 'police') {
+    const kind = m.role === 'tester' ? 'pcr' : 'police';
+    const done = (V.noms || []).find((n) => n.kind === kind && n.mine);
+    const title = m.role === 'tester' ? '🔬 유전자 증폭 검사 지목' : '👮 자가격리 지목';
+    if (done) return '<div class="card"><b>' + title + '</b><div class="sub">' + done.no + '번 ' + esc(done.name) + ' 지목 완료 (모두에게 공개됐어요)</div></div>';
+    const grid = V.all.map((p) => { const dis = m.role === 'police' && p.lastPol;
+      return '<button class="' + (pickTarget === p.i ? 'sel' : '') + '" data-pick="' + p.i + '"' + (dis ? ' disabled' : '') + ' style="' + (p.pos ? 'border-color:var(--or);color:var(--or)' : '') + '">' + p.no + '</button>'; }).join('');
+    const sel = pickTarget != null ? V.all.find((p) => p.i === pickTarget) : null;
+    return '<div class="card"><b>' + title + '</b><div class="sub" style="margin-bottom:8px">장소와 상관없이 한 명을 고르세요. ' + (m.role === 'tester' ? '결과는 다음 라운드에 모두에게 공개돼요.' : '그 친구는 다음 라운드에 집에 머물러요. 지난 라운드에 지목한 친구는 고를 수 없어요.') + '</div><div class="seats">' + grid + '</div>' +
+      '<button class="pri" data-confirm="' + kind + '" style="width:100%;margin-top:10px"' + (sel ? '' : ' disabled') + '>' + (sel ? sel.no + '번 ' + esc(sel.name) + ' 지목하기' : '번호를 고르세요') + '</button></div>';
+  }
+  return '';
+}
+function officerView() {
+  const m = V.me;
+  if (m.role !== 'officer') return '<div class="card" style="text-align:center"><div style="font-size:40px">🚧</div><h2>방역관이 조치를 정하는 중</h2><div class="sub">잠시만 기다려 주세요.</div></div>';
+  const ci = m.closeInfo || {cnt:{}};
+  if (ci.decided) return '<div class="card"><h2>결정 완료</h2></div>';
+  return '<div class="card"><h2>🚧 방역관 조치</h2><div class="sub" style="margin-bottom:8px">1~3라운드 동안 다중이용시설에서 일어난 감염 기록이에요. 이 정보는 나만 봐요.</div>' +
+    RISKY.map((id) => '<div class="row" style="padding:4px 0"><span>' + PL[id] + '</span><b>' + (ci.cnt[id] || 0) + '건</b></div>').join('') +
+    '<div class="sub" style="margin:8px 0">한 곳을 4~6라운드 동안 폐쇄할 수 있어요.</div><div style="display:flex;flex-direction:column;gap:6px">' +
+    RISKY.map((id) => '<button class="pri" data-close="' + id + '">' + PL[id] + ' 폐쇄하기</button>').join('') + '<button data-close="">폐쇄하지 않기</button></div></div>';
+}
+function resultView() {
+  const r = V.res, m = V.me;
+  return '<div class="verdict"><div style="opacity:.8">' + (r.carrierWin ? '감염 확산 · 최초 감염자 승리' : '방역 성공 · 방역 팀 승리') + '</div><div style="font-size:40px;font-weight:700;line-height:1.2">' + (r.win ? '승리 🎉' : '패배') + '</div><div style="opacity:.8">최종 감염자 ' + r.inf + '명 · 최초 감염자는 ' + esc(r.carriers.join(', ')) + '</div></div>' +
+    '<div class="card"><div class="row"><span>내 역할</span><b>' + ROLE[m.role] + '</b></div><div class="row"><span>감염 여부</span><b>' + (r.dis ? '감염' : '감염 안 됨') + '</b></div><div class="row"><span>최종 점수</span><b>' + r.final + '점' + (r.pen ? ' (등교 감점 −' + r.pen + ')' : '') + '</b></div><div class="row"><span>순위</span><b>' + r.rank + '위 / ' + r.n + '명</b></div></div>' +
+    '<div class="card"><b>나의 동선</b>' + r.hist.map((x) => '<div class="row" style="padding:3px 0"><span>' + x.r + 'R ' + PL[x.place] + (x.forced ? ' (격리)' : '') + (x.bedless ? ' (병상 부족)' : '') + '</span><span class="sub">장소 +' + x.pts + ' · 접촉 +' + x.c + '</span></div>').join('') + '</div>';
 }
 
-function roleCard(){
-  return `<div class="card" id="card"><div style="color:var(--muted);font-size:14px">내 역할</div>
-    <div class="face" id="face">꾹 누르고 있기</div><div id="desc" style="font-size:14px;color:var(--muted)"></div></div>`;
-}
-function bindCard(){
-  const card = document.getElementById('card');
-  const r = G.role;
-  const show = e => {
-    e.preventDefault();
-    card.classList.add('show');
-    document.getElementById('face').textContent = r.role;
-    let d = r.desc || '';
-    if(r.partners && r.partners.length) d += ` 다른 숙주: ${r.partners.join(', ')}번`;
-    document.getElementById('desc').textContent = d;
-  };
-  const hide = () => {
-    card.classList.remove('show');
-    document.getElementById('face').textContent = '꾹 누르고 있기';
-    document.getElementById('desc').textContent = '';
-  };
-  card.addEventListener('pointerdown', show);
-  ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, hide));
-  card.addEventListener('contextmenu', e => e.preventDefault());
+function renderLayer() {
+  if (!V || !V.tut) { $('layer').innerHTML = ''; localDet = null; return; }
+  const S = SLIDES[V.tut.page] || SLIDES[0];
+  let body = '<div style="text-align:center"><div style="font-size:46px">' + S.e + '</div><h2>' + S.title + '</h2>' + (S.sub ? '<div class="sub">' + S.sub + '</div>' : '') + '</div>';
+  S.groups.forEach((g, gi) => { body += (g.label ? '<div class="sub" style="font-weight:700">' + g.label + '</div>' : '') +
+    g.items.map((it, ii) => '<button class="tc" data-det="' + gi + '-' + ii + '" style="background:' + (g.multi ? 'var(--multi)' : 'var(--card)') + '"><span class="e">' + it[0] + '</span><span style="flex:1"><b>' + it[1] + '</b><div style="font-size:13px;font-weight:600">' + tx(it[2]) + '</div><div class="sub">' + tx(it[3]) + '</div></span><span style="color:var(--blue)">›</span></button>').join(''); });
+  if (S.final) body += '<div class="big" style="text-align:center;color:var(--blue)">' + S.final + '</div>';
+  const openKey = V.tut.open || localDet;
+  let det = '';
+  if (openKey) { const [gi, ii] = openKey.split('-').map(Number); const it = S.groups[gi] && S.groups[gi].items[ii];
+    if (it) det = '<div class="ov"><div class="det" role="dialog" aria-label="세부 설명"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:38px">' + it[0] + '</span><b style="font-size:22px">' + it[1] + '</b></div><div class="card" style="background:var(--soft);border:0"><b>' + tx(it[2]) + '</b><div class="sub">' + tx(it[3]) + '</div></div>' + it[4].map((t) => '<div>• ' + tx(t) + '</div>').join('') + (V.tut.open ? '' : '<button data-a="detx">닫기</button>') + '</div></div>'; }
+  $('layer').innerHTML = '<div class="ov"><div class="sheet" role="dialog" aria-label="게임 설명"><div class="row" style="padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)"><b>게임 설명</b><span class="sub">' + (V.tut.page + 1) + ' / ' + SLIDES.length + '</span></div><div class="bd">' + body + '</div><div class="sub" style="text-align:center;padding:10px">👩‍🏫 선생님이 넘기면 같이 넘어가요</div></div></div>' + det;
 }
 
-render();
+// ---------- 입력 ----------
+document.addEventListener('pointerdown', (e) => { if (e.target.closest('[data-hold]')) { holding = true; e.preventDefault(); render(true); } });
+['pointerup', 'pointercancel'].forEach((n) => document.addEventListener(n, () => { if (holding) { holding = false; render(true); } }));
+document.addEventListener('contextmenu', (e) => { if (e.target.closest('[data-hold]')) e.preventDefault(); });
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const d = b.dataset;
+  if (d.seat) { pickSeat = +d.seat; const nm = $('nm') && $('nm').value; render(true); if (nm != null && $('nm')) $('nm').value = nm; return; }
+  if (d.a === 'join') { const name = ($('nm') && $('nm').value.trim()) || ''; me = {seat:pickSeat, name, token: Math.random().toString(36).slice(2) + Date.now().toString(36)}; save('vg_player_' + room, me); err = null; send({t:'join', seat:me.seat, name, token:me.token}); return; }
+  if (d.a === 'leave') { del('vg_player_' + room); location.reload(); return; }
+  if (d.a === 'room') { const v = $('rc').value.toUpperCase().trim(); if (v.length === 4) location.href = location.pathname + '?room=' + v; return; }
+  if (d.a === 'rapid') { act({a:'rapid'}); return; }
+  if (d.a === 'detx') { localDet = null; renderLayer(); return; }
+  if (d.det) { if (!V.tut.open) { localDet = d.det; renderLayer(); } return; }
+  if (d.place) { act({a:'place', place:d.place}); V.choice = d.place; render(true); return; }
+  if (d.req) { act({a:'req', to:+d.req}); return; }
+  if (d.resp) { act({a:'resp', id:+d.resp, ok: d.ok === '1'}); return; }
+  if (d.vacc) { act({a:'vacc', to:+d.vacc}); return; }
+  if (d.pick) { pickTarget = +d.pick; render(true); return; }
+  if (d.confirm && pickTarget != null) { act({a:d.confirm, to:pickTarget}); pickTarget = null; return; }
+  if (d.close != null) { act({a:'officer', place:d.close || null}); return; }
+});
+
+if (room) ensurePeer();
+render(true);
+}
 </script>
 </body>
 </html>
