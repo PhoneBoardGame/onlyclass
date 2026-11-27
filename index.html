@@ -107,6 +107,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:6px 4px;b
     <div class="track" id="track"></div>
   </div>
   <div class="ctl">
+    <span class="pill int" id="netPill" style="display:none"></span>
     <span class="pill" id="phasePill">입장 대기</span>
     <span class="clock" id="clock">–</span>
     <button id="btnPause" aria-label="일시정지">⏸</button>
@@ -133,21 +134,21 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:6px 4px;b
 {
 const SLIDES = [
       { e: '🦠', title: '바이러스 게임', sub: '7라운드 동안 감염병을 피하거나, 퍼뜨려요', groups: [{ items: [
-        ['🙂', '일반 시민', '게임이 끝날 때 감염되지 않고', '⭐ 15점 이상이면 승리', ['감염되지 않은 일반 시민은 모두 승리할 수 있어요.', '감염되지 않았어도 15점보다 낮으면 패배예요.', '기준 점수는 참가 인원에 따라 조금씩 달라져요.', '⭐ 점수 얻는 법 ①  학교: 갈 때마다 +1 → +2 → +3…', '⭐ 점수 얻는 법 ②  노래방 · PC방 · 식당: 장소마다 첫 방문 +3, 이후 +2', '⭐ 점수 얻는 법 ③  접촉: 성사될 때마다 +1', '⚠️ 1~3라운드, 4~6라운드에 학교를 못 가면 각각 −10점 · 집 · 병원은 0점', '감염돼도 병원에서 치료받으면 다시 감염 안 된 상태가 돼요.']],
+        ['🙂', '일반 시민', '게임이 끝날 때 감염되지 않고', '⭐ 반 평균 점수 이상이면 승리', ['감염되지 않은 일반 시민은 모두 승리할 수 있어요.', '기준 점수는 게임이 끝날 때 반 전체의 평균 점수예요. 평균보다 낮으면 패배예요.', '⭐ 점수 얻는 법 ①  학교: 갈 때마다 +1 → +2 → +3 (최대 +3)', '⭐ 점수 얻는 법 ②  노래방 · PC방 · 식당: 장소마다 첫 방문 +3, 이후 +2', '⭐ 점수 얻는 법 ③  접촉: 성사될 때마다 +1', '⚠️ 1~3라운드, 4~6라운드에 학교를 못 가면 각각 −10점 · 집 · 병원은 0점', '감염돼도 병원에서 치료받으면 다시 감염 안 된 상태가 돼요.']],
         ['🦠', '최초 감염자', '게임이 끝날 때 감염자가', '과반(24명 중 13명) 이상이면 승리', ['점수와 상관없이 감염자 수로만 승패가 정해져요.', '1라운드에는 증상이 없어요.', '병원에 가면 증상이 감기 수준으로 줄지만, 병원체는 그대로예요.']],
         ['🛡️', '방역 팀', '연구원 · 검사원 · 방역 경찰 · 방역관', '감염자가 과반보다 적으면 승리', ['점수와 상관없이 감염자 수로 승패가 정해져요.', '각자의 능력으로 감염 확산을 막으세요.']]
       ] }] },
       { e: '🔁', title: '한 라운드는 이렇게', groups: [{ items: [
         ['📍', '① 장소 고르기', '60초 동안 갈 곳을 골라요', '시간이 끝나면 자동으로 이동', ['시간 안에는 몇 번이든 바꿀 수 있어요.', '장소마다 받는 점수가 달라요.', '증상이 있다면 집이나 병원도 생각해 보세요.']],
         ['📺', '② 동선 공개', '누가 어디로 갔는지', 'TV에 모두 공개돼요', ['장소는 모두가 볼 수 있어요.', '증상은 같은 장소에 있는 친구에게만 보여요.', '1 · 3 · 5라운드에는 감염자 수도 공개돼요.']],
-        ['🤝', '③ 상호작용', '60초 동안 같은 장소 친구와', '접촉하고 능력을 써요', ['접촉이 성사되면 둘 다 +1점이에요.', '역할이 있는 친구는 이때 능력을 써요.']],
+        ['🤝', '③ 상호작용', '60초 동안 같은 장소 친구와', '접촉하고 능력을 써요', ['접촉이 성사되면 둘 다 +1점이에요. (마스크를 쓴 사람은 0점)', '역할이 있는 친구는 이때 능력을 써요.']],
         ['🔁', '7라운드 반복', '7라운드가 끝나면', '결과를 발표해요', ['7라운드에는 모두 학교에 모이고, 접촉은 없어요.', '최종 감염자 수와 점수로 승패가 정해져요.']]
       ] }] },
       { e: '📍', title: '장소', groups: [
         { label: '특수 장소', items: [
           ['🏠', '집', '0점 · 자가격리', '아무와도 접촉하지 않아요', ['집에 있으면 증상이 1개씩 사라져요.', '감기는 증상이 다 사라지면 나아요.', '감염병은 증상이 다 사라지면 잠복기(무증상)로 돌아가요. 병원체는 남아 있어서 계속 옮길 수 있어요.', '방역 경찰에게 지목되면 강제로 집에 있어요.']],
-          ['🏫', '학교', '갈 때마다 +1 → +2 → +3…', '1~3R, 4~6R에 1번씩 꼭!', ['학교에서도 친구와 접촉할 수 있어요.', '등교 의무를 못 지키면 최종 점수 −10점이에요.', '7라운드에는 모두 학교에 와요.']],
-          ['🏥', '병원', '0점 · 모든 질병 치료', '병상 4개 · 증상 많은 순서로 입원', ['병상보다 사람이 많으면 증상이 많은 사람부터 들어가요. 증상 수가 같으면 무작위예요.', '병상이 없어 못 들어간 사람은 집으로 가요.', '치료는 그 라운드가 끝날 때 돼요.', '연구원은 병원에서 백신을 만들어요.', '최초 감염자는 증상만 감기 수준으로 줄고, 병원체는 남아요.']]
+          ['🏫', '학교', '갈 때마다 +1 → +2 → +3 (최대)', '1~3R, 4~6R에 1번씩 꼭!', ['학교에서도 친구와 접촉할 수 있어요.', '등교 의무를 못 지키면 최종 점수 −10점이에요.', '7라운드에는 모두 학교에 와요.']],
+          ['🏥', '병원', '0점 · 모든 질병 치료', '병상 4개 · 증상 많은 순서로 입원', ['병상보다 사람이 많으면 증상이 많은 사람부터 들어가요. 증상 수가 같으면 무작위예요.', '병상이 없어 못 들어간 사람은 집으로 가요.', '치료는 그 라운드가 끝날 때 돼요.', '연구원은 병원에서 매 라운드 백신을 만들어요.', '최초 감염자는 증상만 감기 수준으로 줄고, 병원체는 남아요.']]
         ] },
         { label: '다중이용시설', multi: true, items: [
           ['🎤', '노래방', '첫 방문 +3 · 이후 +2', '사람이 몰려 접촉이 많아요', ['장소마다 첫 방문 보너스가 따로 있어요.', '사람이 많을수록 접촉 점수도, 감염 위험도 커져요.']],
@@ -155,14 +156,14 @@ const SLIDES = [
           ['🍜', '식당', '첫 방문 +3 · 이후 +2', '사람이 몰려 접촉이 많아요', ['장소마다 첫 방문 보너스가 따로 있어요.', '사람이 많을수록 접촉 점수도, 감염 위험도 커져요.']]
         ] }] },
       { e: '🏫', title: '등교 규칙', groups: [{ items: [
-        ['1️⃣', '1~3라운드', '이 중 1번은 꼭 학교에 가요', '3라운드가 마지막 기회', ['1, 2, 3라운드 중 언제 가도 괜찮아요.', '두 번 이상 가면 학교 점수가 계속 올라가요.']],
-        ['2️⃣', '4~6라운드', '이 중 1번은 꼭 학교에 가요', '6라운드가 마지막 기회', ['4, 5, 6라운드 중 언제 가도 괜찮아요.', '학교 점수는 1~3라운드 방문 횟수에 이어서 올라가요.']],
+        ['1️⃣', '1~3라운드', '이 중 1번은 꼭 학교에 가요', '3라운드가 마지막 기회', ['1, 2, 3라운드 중 언제 가도 괜찮아요.', '두 번 이상 가면 학교 점수가 +3까지 올라가요.']],
+        ['2️⃣', '4~6라운드', '이 중 1번은 꼭 학교에 가요', '6라운드가 마지막 기회', ['4, 5, 6라운드 중 언제 가도 괜찮아요.', '학교 점수는 1~3라운드 방문 횟수에 이어서 올라가고, 최대 +3이에요.']],
         ['🎒', '7라운드', '모두 학교에 모여요', '접촉 없이 결과 발표', ['7라운드 학교 방문도 점수에 들어가요.', '이 라운드에는 접촉과 능력을 쓸 수 없어요.']],
         ['⚠️', '못 지키면', '최종 점수 −10점', '강제 자가격리는 출석 인정', ['방역 경찰에게 지목돼 집에 있었던 라운드는 등교한 것으로 쳐요.', '아파서 집이나 병원에 간 라운드는 인정되지 않아요.']]
       ] }] },
       { e: '🤝', title: '접촉', groups: [{ items: [
         ['🙋', '요청하기', '같은 장소에 있는 친구에게', '접촉을 요청해요', ['한 라운드에 여러 명과 접촉할 수 있어요.', '같은 친구와는 라운드당 1번만 가능해요.']],
-        ['👍', '수락 · 거절', '수락하면 둘 다 ⭐ +1점', '거절하면 아무 일도 없어요', ['증상이 보이는 친구의 요청은 거절할 수도 있어요.', '집에서는 접촉할 수 없어요.']],
+        ['👍', '수락 · 거절', '수락하면 둘 다 ⭐ +1점', '거절하면 아무 일도 없어요', ['증상이 보이는 친구의 요청은 거절할 수도 있어요.', '집에서는 접촉할 수 없어요.', '😷 마스크 기능이 켜져 있으면: 마스크를 쓴 사람은 접촉 점수가 0점이지만, 병이 옮을 확률이 절반으로 줄어요.']],
         ['🤧', '병이 옮아요', '감기 · 감염병 친구와 접촉하면', '나도 걸릴 수 있어요', ['감염병은 증상이 없는 잠복기에도 옮아요.', '감기도 접촉으로 옮아요.', '증상은 접촉한 다음 라운드부터 나타나요.']]
       ] }] },
       { e: '🤒', title: '증상', sub: '감기와 감염병은 처음 증상이 똑같아요!', groups: [{ items: [
@@ -177,11 +178,12 @@ const SLIDES = [
       ] }] },
       { e: '🎭', title: '역할', groups: [{ items: [
         ['🦠', '최초 감염자', '병원체를 가지고 시작해요', '접촉으로 감염을 퍼뜨려요', ['1라운드에는 증상이 없어요.', '병원에 가면 증상이 감기 수준으로 줄어 숨기 쉬워져요.', '하지만 병원체는 그대로라 계속 옮길 수 있어요.']],
-        ['💉', '감염병 연구원', '병원에서 백신 1개를 만들어요', '다음 라운드, 다른 장소에서 1명 접종', ['백신은 예방용이에요. 접종하면 이후 감염되지 않아요.', '이미 감염된 사람은 백신으로 낫지 않아요.']],
+        ['💉', '감염병 연구원', '병원에서 매 라운드 백신 1개 제조', '어느 장소에 있는 친구든 백신을 보낼 수 있어요', ['백신은 예방용이에요. 효과는 다음 라운드부터 생겨요.', '이미 감염된 사람은 백신으로 낫지 않아요.', '연구원은 병상을 차지하지 않아요.']],
         ['🔬', '진단 검사원', '매 라운드 1명을 공개 지목', '유전자 증폭 검사 결과는 다음 라운드 공개', ['장소와 상관없이 누구든 지목할 수 있어요.', '잠복기 감염자도 찾아내요.']],
         ['👮', '방역 경찰', '매 라운드 1명을 공개 지목', '다음 라운드에 강제 자가격리', ['같은 친구를 두 라운드 연속 지목할 수 없어요.', '강제 격리된 라운드는 등교로 인정돼요.']],
         ['🚧', '방역관', '3라운드가 끝나면 감염이 가장 많았던', '다중이용시설 1곳을 4~6라운드 동안 폐쇄', ['1~3라운드 동안 어느 다중이용시설에서 감염이 가장 많았는지 방역관만 확인해요.', '폐쇄된 장소는 4, 5, 6라운드 동안 아무도 갈 수 없어요.', '7라운드에는 모두 학교에 가니 폐쇄와 상관없어요.']],
-        ['🙂', '일반 시민', '특별한 능력은 없어요', '장소 선택과 접촉으로 살아남기', ['감염되지 않고 15점 이상이면 승리해요.', '감염돼도 병원에 가면 나아요.']]
+        ['🙂', '일반 시민', '특별한 능력은 없어요', '장소 선택과 접촉으로 살아남기', ['감염되지 않고 반 평균 점수 이상이면 승리해요.', '감염돼도 병원에 가면 나아요.']],
+        ['🧬', '숨은 체질', '일반 시민 중 몇 명은 특별한 몸을 가졌어요', '본인도 몰라요 · 결과 발표 때 공개', ['슈퍼 면역자: 감기도 감염병도 걸리지 않아요.', '항체 보유자: 감기는 걸리지만 감염병은 걸리지 않아요.', '선생님 설정에 따라 없을 수도 있어요.']]
       ] }] },
       { e: '📢', title: '공개되는 정보', final: '준비됐나요? 🚀', groups: [{ items: [
         ['🔢', '감염자 수', '1 · 3 · 5라운드 시작 때', '몇 명이 감염됐는지만 공개', ['누가 감염됐는지는 공개되지 않아요.', '숫자를 보고 추리해 보세요.']],
@@ -200,7 +202,8 @@ const rnd = Math.random, pick = (a) => a[Math.floor(rnd()*a.length)];
 const shuffle = (a) => { a = a.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const settings = {n:24, carrier:1, researcher:1, tester:1, police:1, officer:1, beds:4, colds:2, dil:0.5, dur:60, winRule:'half'};
+const settings = {n:24, carrier:1, researcher:1, tester:1, police:1, officer:1, beds:4, colds:2, dil:0.5, dur:60, winRule:'half', superImm:0, anti:0, mask:false};
+let SIM = false;
 const carrierLine = () => settings.winRule === 'half' ? Math.floor(settings.n / 2) + 1 : Math.round(settings.n * 2 / 3);
 const lineName = () => settings.winRule === 'half' ? '과반' : '3분의 2';
 const BEDS = {20:3, 21:4, 22:4, 23:4, 24:4, 25:5, 26:5, 27:6};
@@ -222,24 +225,27 @@ function buildPlayers() {
   while (roles.length < s.n) roles.push('citizen');
   const rs = shuffle(roles);
   const P = rs.map((role, i) => ({
-    i, no:i+1, name:seatName(i+1), human:!!seats[i+1], role, dis:role==='carrier', latent:role==='carrier', dsym:0, csym:0,
+    i, no:i+1, name:seatName(i+1), human:!SIM && !!seats[i+1], role, dis:role==='carrier', latent:role==='carrier', dsym:0, csym:0,
     dOrder: shuffle(['기침','오한','고열']).concat(shuffle(['근육통','구역질'])), cOrder: shuffle(['기침','오한','고열']),
     vacc:false, rapidUsed:false, rapid:null, confirmed:false, testedNeg:false, forced:false, lastPolice:-9,
     sch1:false, sch2:false, schN:0, visits:{}, score:0, k: role==='carrier' ? 3 : pick([1,2,2,3]), vaccine:0, hist:[], by:null
   }));
+  const cits = shuffle(P.filter((p) => p.role === 'citizen'));
+  cits.slice(0, s.superImm).forEach((p) => p.imm = 'super');
+  cits.slice(s.superImm, s.superImm + s.anti).forEach((p) => p.imm = 'anti');
   G.P = P; G.trace = new Array(s.n).fill(0);
   addLog('역할 배부 · 학생 ' + P.filter((p) => p.human).length + '명 + AI ' + P.filter((p) => !p.human).length + '명', false);
 }
 const visible = (p) => [...new Set([...p.cOrder.slice(0, p.csym), ...p.dOrder.slice(0, p.dsym)])];
 const isVis = (p) => p.csym > 0 || p.dsym > 0;
 const late = (p) => p.dsym >= 4;
-function addLog(text, teacher) { G.log.unshift({r:G.round, text, teacher}); renderLog(); }
+function addLog(text, teacher) { if (SIM) return; G.log.unshift({r:G.round, text, teacher}); renderLog(); }
 
 function choose(p, r, caution) {
   const dil = settings.dil, RO = openRisky(r);
   if (p.forced) return HOME;
   if (p.role === 'carrier') { if ((p.dsym >= 3 || p.confirmed) && rnd() < 0.7) return HOSP; return rnd() < 0.8 ? pick(RO) : SCHOOL; }
-  if (p.role === 'researcher') { if (p.vaccine) return pick([...RO, SCHOOL]); return HOSP; }
+  if (p.role === 'researcher') return HOSP;
   if (isVis(p)) {
     if (late(p) || p.confirmed) { if (rnd() < 0.85 + 0.1*dil) return HOSP; }
     else {
@@ -264,11 +270,11 @@ const openRisky = (r) => RISKY.filter((pl) => !closedNow(pl, r));
 
 function startRound(r) {
   G.round = r; G.phase = 'place'; G.t = 0; G.dur = settings.dur;
-  G.pcrShow = null; G.polShow = null;
+  G.pcrShow = null; G.polShow = null; G.mask = {};
   if (G.pendPCR) { const {who, pos} = G.pendPCR; const p = G.P[who]; if (pos) p.confirmed = true; else p.testedNeg = true; G.pcrShow = {who, pos}; addLog('유전자 증폭 검사 결과: ' + p.no + '번 ' + (pos ? '양성' : '음성'), false); G.pendPCR = null; }
   G.P.forEach((p) => p.forced = false);
   if (G.pendPol != null) { const p = G.P[G.pendPol]; p.forced = true; G.polShow = G.pendPol; addLog(p.no + '번 강제 자가격리 (방역 경찰 지목)', false); G.pendPol = null; }
-  const nc = shuffle(G.P.filter((p) => p.csym === 0)).slice(0, settings.colds);
+  const nc = shuffle(G.P.filter((p) => p.csym === 0 && p.imm !== 'super')).slice(0, settings.colds);
   nc.forEach((p) => { p.cOrder = shuffle(['기침','오한','고열']); p.csym = 1; });
   if (nc.length) addLog('새 감기 환자: ' + nc.map((p) => p.no + '번').join(', '), true);
   if (r === 1 || r === 3 || r === 5) { G.announced = G.P.filter((p) => p.dis).length; addLog('감염자 수 공개: ' + G.announced + '명', false); }
@@ -282,7 +288,8 @@ function startRound(r) {
   }
   const caution = (G.announced || 1) / settings.n;
   G.ev = G.P.map((p) => p.human ? {who:p.i, at: p.forced ? 0 : Infinity, place: HOME, human:true} : {who:p.i, at: p.forced ? 0 : 0.1 + rnd()*0.8, place: choose(p, r, caution)});
-  G.P.forEach((p) => { if (!p.human && p.role === 'researcher' && !p.forced && !p.vaccine) G.ev[p.i].place = HOSP; });
+  G.P.forEach((p) => { if (!p.human && p.role === 'researcher' && !p.forced) G.ev[p.i].place = HOSP; });
+  if (settings.mask) G.P.forEach((p) => { if (!p.human && !p.forced && p.role !== 'carrier' && rnd() < (isVis(p) ? 0.2 + 0.5 * settings.dil : 0.15)) G.mask[p.i] = true; });
   dirty = true;
   addLog(r + '라운드 시작 · 장소 선택', false);
 }
@@ -299,7 +306,7 @@ function endPlace() {
   const groups = {};
   G.ev.forEach((e) => { const p = G.P[e.who]; G.loc[p.i] = e.place; (groups[e.place] = groups[e.place] || []).push(p.i);
     let pts = 0;
-    if (e.place === SCHOOL) { p.schN++; pts = p.schN; if (r <= 3) p.sch1 = true; else if (r <= 6) p.sch2 = true; }
+    if (e.place === SCHOOL) { p.schN++; pts = Math.min(p.schN, 3); if (r <= 3) p.sch1 = true; else if (r <= 6) p.sch2 = true; }
     else if (RISKY.includes(e.place)) { pts = p.visits[e.place] ? 2 : 3; p.visits[e.place] = 1; }
     if (p.forced) { if (r <= 3) p.sch1 = true; else p.sch2 = true; }
     p.score += pts; p.hist.push({r, place:e.place, pts, c:0, forced:p.forced, bedless:p.bedless === r, none:p.noChoice === r});
@@ -324,9 +331,11 @@ function startInteract(groups) {
       done.add(Math.min(a.i,b.i)+'-'+Math.max(a.i,b.i));
       G.ev.push({type:'contact', at:0.08 + rnd()*0.85, a:a.i, b:b.i, place:pl, fired:false});
     } });
-    const res = mem.find((m) => !m.human && m.role === 'researcher' && m.vaccine && pl !== HOSP);
-    if (res) { const tg = mem.filter((m) => m !== res && !isVis(m) && !m.confirmed && !m.vacc); if (tg.length) G.ev.push({type:'vacc', at:0.3 + rnd()*0.5, by:res.i, to:pick(tg).i, fired:false}); }
   }
+  G.P.filter((p) => p.role === 'researcher' && !p.human && p.vaccine > 0).forEach((res) => {
+    const tg = shuffle(G.P.filter((m) => m !== res && !isVis(m) && !m.confirmed && !m.vacc && !m.vaccPend));
+    tg.slice(0, res.vaccine).forEach((m) => G.ev.push({type:'vacc', at:0.2 + rnd()*0.6, by:res.i, to:m.i, fired:false}));
+  });
   G.P.filter((p) => p.role === 'tester' && !p.human).forEach((t) => {
     if (t.forced && false) return;
     const c = G.P.filter((p) => p !== t && !p.testedNeg && !p.confirmed).sort((x,y) => (G.trace[y.i]+rnd()) - (G.trace[x.i]+rnd()));
@@ -349,7 +358,7 @@ function fireEvents(frac) {
       if (b.human && isOnline(b)) { G.reqs.push({id: ++G.reqId, from:a.i, to:b.i, place:e.place}); dirty = true; }
       else if (aiAccept(b, a)) acceptContact(a.i, b.i, e.place); else G.pairs.add(pkey(a.i, b.i)); }
     dirty = true;
-    if (e.type === 'vacc') { G.P[e.to].vacc = true; G.P[e.by].vaccine = 0; addLog(G.P[e.by].no + '번 연구원이 ' + G.P[e.to].no + '번에게 백신 접종', true); }
+    if (e.type === 'vacc') { if (G.P[e.by].vaccine <= 0 || G.P[e.to].vacc || G.P[e.to].vaccPend) return; G.P[e.to].vaccPend = true; G.P[e.by].vaccine--; addLog(G.P[e.by].no + '번 연구원이 ' + G.P[e.to].no + '번에게 백신 접종', true); }
     if (e.type === 'pcr') { G.noms.push({kind:'pcr', by:e.by, to:e.to}); G.pendPCR = {who:e.to, pos:G.startDis.has(e.to)}; addLog('진단 검사원 지목: ' + G.P[e.to].no + '번 유전자 증폭 검사', false); }
     if (e.type === 'police') { G.noms.push({kind:'police', by:e.by, to:e.to}); G.pendPol = e.to; G.P[e.to].lastPolice = G.round; addLog('방역 경찰 지목: ' + G.P[e.to].no + '번 다음 라운드 자가격리', false); }
   });
@@ -359,10 +368,11 @@ function settle() {
   fireEvents(2);
   const r = G.round, newDis = new Map(), newCold = new Set();
   G.reqs = []; G.aiResp = [];
+  const through = (x, y) => rnd() < (G.mask[x] ? 0.5 : 1) * (G.mask[y] ? 0.5 : 1);
   G.acc.forEach((e) => {
     [[e.a,e.b],[e.b,e.a]].forEach(([x,y]) => { const py = G.P[y];
-      if (G.startDis.has(x) && !py.vacc && !G.startDis.has(y) && !newDis.has(y)) newDis.set(y, {from:x, place:e.place});
-      if (G.startCold.has(x) && !G.startCold.has(y)) newCold.add(y); });
+      if (G.startDis.has(x) && !py.vacc && !py.imm && !G.startDis.has(y) && !newDis.has(y) && through(x, y)) newDis.set(y, {from:x, place:e.place});
+      if (G.startCold.has(x) && !G.startCold.has(y) && py.imm !== 'super' && through(x, y)) newCold.add(y); });
   });
   G.P.forEach((p) => { const l = G.loc[p.i];
     if (p.dis) {
@@ -373,10 +383,11 @@ function settle() {
     if (p.csym > 0) { if (p.csym >= 3) p.csym = 0; else if (l === HOME) p.csym--; else if (l !== HOSP) p.csym++; if (p.csym === 0) p.cOrder = shuffle(['기침','오한','고열']); }
     if (l === HOSP) { if (p.role === 'carrier') { p.csym = 0; if (p.dsym > 1) { p.dsym = 1; addLog(p.no + '번 최초 감염자 병원: 증상이 감기 수준으로 완화 (병원체는 그대로)', true); } }
       if (p.role !== 'carrier') { if (p.dis) addLog(p.no + '번 병원 치료로 완치', true); p.dis = false; p.latent = false; p.dsym = 0; p.csym = 0; p.confirmed = false; }
-      if (p.role === 'researcher') p.vaccine = 1; return; }
+      if (p.role === 'researcher') p.vaccine++; return; }
     if (newDis.has(p.i)) { const s = newDis.get(p.i); p.dis = true; p.latent = true; p.dsym = 0; p.by = s.from; G.chain.push({r, from:s.from, to:p.i, place:s.place}); addLog(G.P[s.from].no + '번 → ' + p.no + '번 감염 (' + PL[s.place] + ')', true); }
     if (newCold.has(p.i) && p.csym === 0) p.csym = 1;
   });
+  G.P.forEach((p) => { if (p.vaccPend) { p.vacc = true; p.vaccPend = false; } });
   G.curve.push(G.P.filter((p) => p.dis).length);
   if (r === 3 && G.P.some((p) => p.role === 'officer' && !p.human)) {
     const cnt = {}; G.chain.filter((c) => c.r <= 3 && RISKY.includes(c.place)).forEach((c) => cnt[c.place] = (cnt[c.place] || 0) + 1);
@@ -390,7 +401,7 @@ function settle() {
 
 function startFinal() {
   G.round = 7; G.phase = 'final'; G.t = 0; G.dur = 0;
-  G.P.forEach((p) => { p.forced = false; p.schN++; p.score += p.schN; p.hist.push({r:7, place:SCHOOL, pts:p.schN, c:0}); });
+  G.P.forEach((p) => { p.forced = false; p.schN++; p.score += Math.min(p.schN, 3); p.hist.push({r:7, place:SCHOOL, pts:Math.min(p.schN, 3), c:0, n:0}); });
   if (G.pendPCR) { const {who, pos} = G.pendPCR; G.pcrShow = {who, pos}; if (pos) G.P[who].confirmed = true; G.pendPCR = null; addLog('유전자 증폭 검사 결과: ' + G.P[who].no + '번 ' + (pos ? '양성' : '음성'), false); }
   addLog('7라운드 · 전원 등교 (접촉 없음)', false);
 }
@@ -398,6 +409,7 @@ function startFinal() {
 function finish() {
   G.phase = 'result'; G.done = true;
   G.P.forEach((p) => { p.pen = (p.sch1 ? 0 : 10) + (p.sch2 ? 0 : 10); p.final = p.score - p.pen; });
+  G.avg = Math.round(G.P.reduce((s, p) => s + p.final, 0) / G.P.length * 10) / 10;
   G.inf = G.P.filter((p) => p.dis).length;
   G.carrierWin = G.inf >= carrierLine();
   addLog('결과 공개 · 최종 감염자 ' + G.inf + '명 · ' + (G.carrierWin ? '최초 감염자 승리' : '방역 팀 승리'), false);
@@ -448,7 +460,7 @@ function chip(p, extra) {
   if (p.confirmed && p.dis) cls += ' pos';
   if (tv) { if (p.role === 'carrier') cls += ' t-car'; else if (p.dis) cls += p.latent ? ' t-lat' : ' t-dis'; else if (p.csym) cls += ' t-cold'; }
   const role = tv && RS[p.role] ? '<small>' + RS[p.role] + '</small>' : '';
-  const v = (tv && p.vacc ? '<small>백신</small>' : '') + (tv && !p.human ? '<small>AI</small>' : '') + (p.human && !isOnline(p) ? '<small style="color:var(--or)">끊김</small>' : '');
+  const v = (G.mask && G.mask[p.i] && G.phase !== 'place' ? '<small>😷</small>' : '') + (tv && p.imm ? '<small>' + (p.imm === 'super' ? '면역' : '항체') + '</small>' : '') + (tv && (p.vacc || p.vaccPend) ? '<small>백신' + (p.vaccPend ? '(대기)' : '') + '</small>' : '') + (tv && !p.human ? '<small>AI</small>' : '') + (p.human && !isOnline(p) ? '<small style="color:var(--or)">끊김</small>' : '');
   if (extra === 'bed') cls += ' iso';
   return '<button class="' + cls + '" data-peek="' + p.i + '">' + p.no + ' ' + esc(p.name) + (extra === 'iso' ? ' · 격리' : '') + (extra === 'bed' ? ' · 병상 부족' : '') + (p.confirmed && p.dis ? ' · 양성' : '') + role + v + '</button>';
 }
@@ -468,12 +480,12 @@ function placeGroups(inner) {
   return '<div class="grp sp"><h3>특수 장소</h3><div class="places">' + sp + '</div></div><div class="grp mu"><h3>다중이용시설 · 첫 방문 +3, 이후 +2</h3><div class="places">' + mu + '</div></div>';
 }
 const closedCard = (pl) => '<div class="place" style="background:var(--soft);border-style:dashed"><div class="ph"><b style="color:var(--mut)">' + PL[pl] + '</b><span class="tag l">폐쇄</span></div><div class="sub">방역관 조치로 4~6라운드 동안 이용할 수 없어요</div></div>';
-const RULE = {home:'+0 · 자가격리 · 접촉 없음', school:'+1, +2, +3… · 등교 의무', get hosp() { return '+0 · 모든 질병 치료 · 병상 ' + settings.beds + '개'; }, kara:'첫 방문 +3 · 이후 +2', pc:'첫 방문 +3 · 이후 +2', food:'첫 방문 +3 · 이후 +2'};
+const RULE = {home:'+0 · 자가격리 · 접촉 없음', school:'+1 → +2 → +3 (최대) · 등교 의무', get hosp() { return '+0 · 모든 질병 치료 · 병상 ' + settings.beds + '개'; }, kara:'첫 방문 +3 · 이후 +2', pc:'첫 방문 +3 · 이후 +2', food:'첫 방문 +3 · 이후 +2'};
 
 function viewLobby() {
   const s = settings;
   const st = (k, lo, hi, label) => '<div class="row"><span>' + label + '</span><span class="step"><button data-step="' + k + '" data-d="-1" aria-label="줄이기">−</button><b>' + s[k] + '</b><button data-step="' + k + '" data-d="1" aria-label="늘리기">+</button></span></div>';
-  const cit = s.n - s.carrier - s.researcher - s.tester - s.police - s.officer;
+  const cit = s.n - s.carrier - s.researcher - s.tester - s.police - s.officer - s.superImm - s.anti;
   const joined = Object.keys(seats).filter((no) => +no <= s.n).length;
   let grid = '';
   for (let no = 1; no <= s.n; no++) {
@@ -491,9 +503,11 @@ function viewLobby() {
     '<div class="row"><span>AI 학생 방역 성실도</span><select id="dil"><option value="0.3"' + (s.dil===0.3?' selected':'') + '>낮음</option><option value="0.5"' + (s.dil===0.5?' selected':'') + '>보통</option><option value="0.8"' + (s.dil===0.8?' selected':'') + '>높음</option></select></div>' +
     '<div class="row"><span>단계별 시간</span><select id="dur"><option value="60"' + (s.dur===60?' selected':'') + '>60초 (기본)</option><option value="90"' + (s.dur===90?' selected':'') + '>90초 (여유 있게)</option><option value="30"' + (s.dur===30?' selected':'') + '>30초 (빠르게)</option></select></div>' +
     '<div class="row"><span>최초 감염자 승리 기준</span><select id="winRule"><option value="half"' + (s.winRule==='half'?' selected':'') + '>과반</option><option value="twothirds"' + (s.winRule==='twothirds'?' selected':'') + '>3분의 2</option></select></div>' +
-    '<h2 style="margin-top:14px">역할 배치</h2>' + st('carrier', 1, 3, '최초 감염자') + st('researcher', 0, 3, '감염병 연구원') + st('tester', 0, 3, '감염병 진단 검사원') + st('police', 0, 3, '방역 경찰') + st('officer', 0, 1, '방역관') +
+    '<h2 style="margin-top:14px">역할 배치</h2>' + st('carrier', 1, 3, '최초 감염자') + st('researcher', 0, 3, '감염병 연구원') + st('tester', 0, 3, '감염병 진단 검사원') + st('police', 0, 3, '방역 경찰') + st('officer', 0, 1, '방역관') + st('superImm', 0, 2, '슈퍼 면역자 (본인도 모름)') + st('anti', 0, 3, '항체 보유자 (본인도 모름)') +
     '<div class="row" style="border-top:1px solid var(--line)"><span>일반 시민 (나머지)</span><b>' + cit + '</b></div>' +
-    '<div class="row"><span>최초 감염자 승리</span><b>감염자 ' + carrierLine() + '명 이상</b></div><div class="row"><span>일반 시민 승리</span><b>감염 안 됨 + ' + winScore() + '점 이상</b></div>' +
+    '<div class="row"><span>최초 감염자 승리</span><b>감염자 ' + carrierLine() + '명 이상</b></div><div class="row"><span>일반 시민 승리</span><b>감염 안 됨 + 반 평균 점수 이상</b></div>' +
+    '<div class="row"><span>😷 마스크 선택 기능</span><label class="tog"><input type="checkbox" id="maskOpt"' + (s.mask ? ' checked' : '') + '> ' + (s.mask ? '켜짐' : '꺼짐') + '</label></div>' +
+    '<div class="card" style="background:var(--ink);color:var(--bg);border-color:var(--ink);margin-top:12px"><div style="opacity:.75;font-size:13px">최초 감염자 예상 승률</div><div style="font-size:30px;font-weight:700">' + estText() + '</div><div style="opacity:.75;font-size:12px">지금 설정으로 AI끼리 ' + EST_N + '판 돌린 결과예요. 실제 학생들은 AI보다 덜 조심하는 편이라 최초 감염자가 조금 더 유리할 수 있어요.</div></div>' +
     '<div style="display:flex;gap:8px;margin-top:12px"><button data-act="tut" style="flex:1">게임 설명</button><button class="pri" data-act="next" style="flex:1">역할 배부하고 시작</button></div></div></div>';
 }
 let qrFor = '';
@@ -538,12 +552,12 @@ function viewResult() {
   const ranked = G.P.slice().sort((a,b) => b.final - a.final);
   const tag = (p) => { if (p.role === 'carrier') return '<span class="tag ' + (G.carrierWin ? 'w' : 'l') + '">' + (G.carrierWin ? '승리' : '패배') + '</span>';
     if (p.role !== 'citizen') return '<span class="tag tm">방역 팀 ' + (G.carrierWin ? '패배' : '승리') + '</span>';
-    return p.dis ? '<span class="tag l">감염</span>' : (p.final >= winScore() ? '<span class="tag w">승리</span>' : '<span class="tag l">점수 부족</span>'); };
-  const winners = G.P.filter((p) => p.role === 'citizen' && !p.dis && p.final >= winScore()).length;
+    return p.dis ? '<span class="tag l">감염</span>' : (p.final >= G.avg ? '<span class="tag w">승리</span>' : '<span class="tag l">점수 부족</span>'); };
+  const winners = G.P.filter((p) => p.role === 'citizen' && !p.dis && p.final >= G.avg).length;
   const maxC = Math.max(n/2, ...G.curve);
   const byR = {}; G.chain.forEach((c) => (byR[c.r] = byR[c.r] || []).push(c));
-  return '<div class="cols"><div class="verdict"><div style="opacity:.75">최종 감염자</div><div class="n">' + G.inf + '명 <span style="font-size:20px;opacity:.75">/ ' + n + '명</span></div><div style="opacity:.75;margin-top:6px">' + lineName() + ' 기준 ' + carrierLine() + '명</div><div style="font-size:28px;font-weight:700;margin-top:10px">' + (G.carrierWin ? '감염 확산' : '방역 성공') + '</div><div style="opacity:.8">' + (G.carrierWin ? '최초 감염자 승리 · 방역 팀 패배' : '방역 팀 승리 · 최초 감염자 패배') + '</div><div style="margin-top:10px">승리한 일반 시민 ' + winners + '명</div></div>' +
-    '<div class="card"><h2>역할 공개</h2>' + ['carrier','researcher','tester','police','officer'].map((r) => '<div class="row"><span>' + ROLE[r] + '</span><b>' + (G.P.filter((p) => p.role === r).map((p) => p.no + '번 ' + esc(p.name)).join(', ') || '없음') + '</b></div>').join('') + '</div>' +
+  return '<div class="cols"><div class="verdict"><div style="opacity:.75">최종 감염자</div><div class="n">' + G.inf + '명 <span style="font-size:20px;opacity:.75">/ ' + n + '명</span></div><div style="opacity:.75;margin-top:6px">' + lineName() + ' 기준 ' + carrierLine() + '명</div><div style="font-size:28px;font-weight:700;margin-top:10px">' + (G.carrierWin ? '감염 확산' : '방역 성공') + '</div><div style="opacity:.8">' + (G.carrierWin ? '최초 감염자 승리 · 방역 팀 패배' : '방역 팀 승리 · 최초 감염자 패배') + '</div><div style="margin-top:10px">반 평균 ' + G.avg + '점 · 승리한 일반 시민 ' + winners + '명</div><button data-act="copyrec" style="margin-top:12px;background:transparent;color:inherit;border-color:currentColor">게임 기록 복사</button></div>' +
+    '<div class="card"><h2>역할 공개</h2>' + ['carrier','researcher','tester','police','officer'].map((r) => '<div class="row"><span>' + ROLE[r] + '</span><b>' + (G.P.filter((p) => p.role === r).map((p) => p.no + '번 ' + esc(p.name)).join(', ') || '없음') + '</b></div>').join('') + [['super','슈퍼 면역자'],['anti','항체 보유자']].map(([k, nm]) => '<div class="row"><span>' + nm + '</span><b>' + (G.P.filter((p) => p.imm === k).map((p) => p.no + '번 ' + esc(p.name)).join(', ') || '없음') + '</b></div>').join('') + '</div>' +
     '<div class="card"><h2>라운드별 감염자 수</h2><div class="curve">' + G.curve.map((c, i) => '<div><b style="color:var(--ink)">' + c + '</b><i style="height:' + Math.round(c/maxC*100) + '%"></i>' + (i+1) + 'R</div>').join('') + '</div><div class="sub">각 라운드가 끝났을 때의 감염자 수 (잠복기 포함)</div></div></div>' +
     '<div class="cols" style="margin-top:14px"><div class="card"><h2>점수 순위</h2><div style="overflow-x:auto"><table><thead><tr><th>순위</th><th>학생</th><th class="r">점수</th><th class="r">감점</th><th>결과</th></tr></thead><tbody>' +
     ranked.map((p, i) => '<tr><td>' + (i+1) + '</td><td><button class="chip" data-peek="' + p.i + '">' + p.no + ' ' + esc(p.name) + '</button></td><td class="r">' + p.final + '</td><td class="r">' + (p.pen ? '−' + p.pen : '') + '</td><td>' + tag(p) + '</td></tr>').join('') + '</tbody></table></div></div>' +
@@ -570,6 +584,9 @@ function render() {
   pill.textContent = {lobby:'입장 대기', place:G.round + 'R · 장소 선택', interact:G.round + 'R · 상호작용', officer:'3R 끝 · 방역관 조치', final:'7R · 전원 등교', result:'결과 발표'}[G.phase];
   $('view').innerHTML = {lobby:viewLobby, place:viewPlace, interact:viewInteract, officer:viewOfficer, final:viewFinal, result:viewResult}[G.phase]();
   if (G.phase === 'lobby') drawQR();
+  const off = G.P.length ? G.P.filter((p) => p.human && !isOnline(p)).map((p) => p.no) : Object.keys(seats).filter((k) => !seats[k].online).map(Number);
+  $('netPill').style.display = off.length ? '' : 'none'; $('netPill').textContent = '📶 연결 끊김 ' + off.length + '명 (' + off.slice(0, 6).join(', ') + (off.length > 6 ? '…' : '') + '번)';
+  if (G.phase === 'lobby') scheduleEstimate();
   updateClock(); renderLayer();
 }
 
@@ -580,7 +597,7 @@ function renderLog() {
 
 function phoneView(p) {
   const tv = $('teacherView').checked, r = G.round, sym = visible(p);
-  const truth = p.role === 'carrier' ? '최초 감염자 (병원체 보유)' : p.dis ? (p.latent ? '잠복기 감염' : '감염') : p.csym ? '감기' : '건강';
+  const truth = (p.imm === 'super' ? '[슈퍼 면역자] ' : p.imm === 'anti' ? '[항체 보유자] ' : '') + (p.role === 'carrier' ? '최초 감염자 (병원체 보유)' : p.dis ? (p.latent ? '잠복기 감염' : '감염') : p.csym ? '감기' : '건강');
   const cur = G.loc[p.i] && (G.phase === 'interact') ? PL[G.loc[p.i]] : (G.phase === 'place' ? (p.forced ? '집 (강제 격리)' : '선택 중') : '–');
   return '<div class="ov" data-close="1"><div class="phone" role="dialog" aria-label="학생 화면"><div class="hd"><b>' + p.no + '번 ' + esc(p.name) + '</b><span class="sub">' + (r ? r + '라운드' : '시작 전') + ' · ' + p.score + '점</span></div><div class="bd">' +
     '<div class="card"><div class="sub">내 역할 (꾹 눌러 확인)</div><div style="font-size:22px;font-weight:700;color:' + (p.role === 'carrier' ? 'var(--or)' : 'var(--ink)') + '">' + ROLE[p.role] + '</div>' + (p.role === 'researcher' ? '<div class="sub">보유 백신 ' + p.vaccine + '개</div>' : '') + (p.role === 'officer' ? '<div class="sub">' + (G.closeInfo ? (G.closeInfo.place ? '확인 결과: ' + PL[G.closeInfo.place] + ' 감염 ' + G.closeInfo.count + '건 → 4~6라운드 폐쇄' : '확인 결과: 다중이용시설 감염 없음') : '3라운드가 끝나면 감염이 가장 많은 다중이용시설을 확인해요') + '</div>' : '') + (p.role === 'carrier' && settings.carrier > 1 ? '<div class="sub">다른 최초 감염자: ' + G.P.filter((x) => x.role === 'carrier' && x !== p).map((x) => x.no + '번').join(', ') + '</div>' : '') + '</div>' +
@@ -641,15 +658,16 @@ document.addEventListener('click', (ev) => {
     $('namesLayer').innerHTML = ''; lastSig = ''; render(); renderLog(); return; }
   if (d.act === 'tut') { tutShown = true; tutPage = 0; renderLayer(); return; }
   if (d.act === 'next') { next(); return; }
-  if (d.step) { const lim = {n:[20,27], colds:[0,6], beds:[2,8], carrier:[1,3], researcher:[0,3], tester:[0,3], police:[0,3], officer:[0,1]}[d.step];
+  if (d.step) { const lim = {n:[10,27], colds:[0,6], beds:[2,8], carrier:[1,3], researcher:[0,3], tester:[0,3], police:[0,3], officer:[0,1], superImm:[0,2], anti:[0,3]}[d.step];
     settings[d.step] = Math.max(lim[0], Math.min(lim[1], settings[d.step] + +d.d));
-    if (d.step === 'n') settings.beds = BEDS[settings.n];
-    const used = settings.carrier + settings.researcher + settings.tester + settings.police + settings.officer;
+    if (d.step === 'n') settings.beds = BEDS[settings.n] || Math.max(2, Math.round(settings.n / 6));
+    const used = settings.carrier + settings.researcher + settings.tester + settings.police + settings.officer + settings.superImm + settings.anti;
     if (used > settings.n - 2) settings[d.step] -= +d.d;
     lastSig = ''; render(); }
 });
 document.addEventListener('change', (ev) => {
   if (ev.target.id === 'dil') { settings.dil = +ev.target.value; lastSig = ''; render(); }
+  if (ev.target.id === 'maskOpt') { settings.mask = ev.target.checked; lastSig = ''; render(); }
   if (ev.target.id === 'winRule') { settings.winRule = ev.target.value; lastSig = ''; render(); }
   if (ev.target.id === 'dur') { settings.dur = +ev.target.value; lastSig = ''; render(); }
 });
@@ -677,7 +695,7 @@ const netSig = () => Object.keys(seats).map((k) => k + (seats[k].online ? 'o' : 
 function acceptContact(a, b, place) {
   G.pairs.add(pkey(a, b));
   const A = G.P[a], B = G.P[b];
-  A.score++; B.score++; A.hist[A.hist.length - 1].c++; B.hist[B.hist.length - 1].c++;
+  [A, B].forEach((X) => { const h = X.hist[X.hist.length - 1]; h.n = (h.n || 0) + 1; if (!G.mask[X.i]) { X.score++; h.c++; } });
   G.contacts[place] = (G.contacts[place] || 0) + 1; G.acc.push({a, b, place}); dirty = true;
 }
 function aiRespond() {
@@ -724,9 +742,12 @@ function onAct(no, d) {
     const q = G.reqs.find((x) => x.id === d.id && x.to === p.i); if (!q) return;
     G.reqs = G.reqs.filter((x) => x !== q);
     if (d.ok) acceptContact(q.from, q.to, q.place); else G.pairs.add(pkey(q.from, q.to));
+  } else if (d.a === 'mask') {
+    if (ph !== 'place' || !settings.mask || p.forced) return;
+    if (d.on) G.mask[p.i] = true; else delete G.mask[p.i];
   } else if (d.a === 'vacc') {
-    if (ph !== 'interact' || p.role !== 'researcher' || !p.vaccine || G.loc[p.i] === HOSP || !b || b === p || G.loc[b.i] !== G.loc[p.i] || b.vacc) return;
-    b.vacc = true; p.vaccine = 0; addLog(p.no + '번 연구원이 ' + b.no + '번에게 백신 접종', true);
+    if (ph !== 'interact' || p.role !== 'researcher' || p.vaccine <= 0 || !b || b === p || b.vacc || b.vaccPend) return;
+    b.vaccPend = true; p.vaccine--; addLog(p.no + '번 연구원이 ' + b.no + '번에게 백신을 보냄 (다음 라운드부터 효과)', true);
   } else if (d.a === 'pcr') {
     if (ph !== 'interact' || p.role !== 'tester' || !b || b === p || G.noms.some((n) => n.kind === 'pcr' && n.by === p.i)) return;
     G.noms.push({kind:'pcr', by:p.i, to:b.i}); G.pendPCR = {who:b.i, pos:G.startDis.has(b.i)}; addLog('진단 검사원 지목: ' + b.no + '번 유전자 증폭 검사', false);
@@ -741,7 +762,7 @@ function onAct(no, d) {
 }
 
 function studentView(no) {
-  const base = {t:'view', seat:no, tut: tutShown ? {page:tutPage, open:tutOpen} : null, cfg:{beds:settings.beds, win:winScore(), line:carrierLine(), lineName:lineName(), n:settings.n}};
+  const base = {t:'view', seat:no, tut: tutShown ? {page:tutPage, open:tutOpen} : null, cfg:{beds:settings.beds, win:'반 평균', line:carrierLine(), lineName:lineName(), n:settings.n, mask:settings.mask}};
   if (!G || !G.P.length || G.phase === 'lobby') return Object.assign(base, {phase:'lobby', name:seatName(no)});
   const p = G.P[no - 1]; if (!p) return Object.assign(base, {phase:'nogame'});
   const r = G.round, ph = G.phase;
@@ -754,24 +775,27 @@ function studentView(no) {
     pcr: G.pcrShow ? {no:G.P[G.pcrShow.who].no, name:G.P[G.pcrShow.who].name, pos:G.pcrShow.pos} : null,
     police: G.polShow != null ? {no:G.P[G.polShow].no, name:G.P[G.polShow].name} : null,
     closed: G.closed && r >= 4 && r <= 6 ? G.closed : null};
-  if (ph === 'place') { const e = G.ev[p.i]; v.choice = e.at === Infinity ? null : e.place; }
+  if (ph === 'place') { const e = G.ev[p.i]; v.choice = e.at === Infinity ? null : e.place; v.mask = !!G.mask[p.i]; }
+  if (p.role === 'researcher' && ph === 'interact') v.vlist = G.P.filter((b) => b !== p).map((b) => ({i:b.i, no:b.no, name:b.name, done: b.vacc || b.vaccPend}));
   if (ph === 'interact') {
     const l = G.loc[p.i]; v.place = l; v.bedlessN = (G.bedless || []).length;
     v.here = l === HOME ? [] : G.P.filter((b) => b !== p && G.loc[b.i] === l).map((b) => {
       const k = pkey(p.i, b.i), inc = G.reqs.find((q) => q.from === b.i && q.to === p.i), out = G.reqs.find((q) => q.from === p.i && q.to === b.i);
       const done = G.acc.some((a) => pkey(a.a, a.b) === k);
-      return {i:b.i, no:b.no, name:b.name, sym:visible(b), pos:b.confirmed && b.dis, vacc: p.role === 'researcher' ? b.vacc : false, st: done ? 'done' : inc ? 'in' : out ? 'out' : G.pairs.has(k) ? 'no' : '', req: inc ? inc.id : null};
+      return {i:b.i, no:b.no, name:b.name, sym:visible(b), pos:b.confirmed && b.dis, mask: !!G.mask[b.i], st: done ? 'done' : inc ? 'in' : out ? 'out' : G.pairs.has(k) ? 'no' : '', req: inc ? inc.id : null};
     });
     v.noms = G.noms.map((n) => ({kind:n.kind, no:G.P[n.to].no, name:G.P[n.to].name, mine:n.by === p.i}));
     if (p.role === 'tester' || p.role === 'police') v.all = G.P.filter((b) => b !== p).map((b) => ({i:b.i, no:b.no, name:b.name, pos:b.confirmed && b.dis, neg:b.testedNeg, lastPol:b.lastPolice === r - 1}));
-    v.myC = p.hist.length ? p.hist[p.hist.length - 1].c : 0;
+    const h = p.hist[p.hist.length - 1] || {pts:0, c:0, n:0}; v.myC = h.n || 0; v.rPts = h.pts; v.rC = h.c; v.mask = !!G.mask[p.i];
   }
   if (ph === 'final') v.pen = (p.sch1 ? 0 : 10) + (p.sch2 ? 0 : 10);
   if (ph === 'result') {
     const ranked = G.P.slice().sort((a, b) => b.final - a.final);
     v.res = {inf:G.inf, carrierWin:G.carrierWin, final:p.final, pen:p.pen, rank:ranked.indexOf(p) + 1, n:G.P.length, dis:p.dis,
-      win: p.role === 'carrier' ? G.carrierWin : (p.role !== 'citizen' ? !G.carrierWin : (!p.dis && p.final >= winScore())),
-      carriers: G.P.filter((x) => x.role === 'carrier').map((x) => x.no + '번 ' + x.name), hist:p.hist};
+      win: p.role === 'carrier' ? G.carrierWin : (p.role !== 'citizen' ? !G.carrierWin : (!p.dis && p.final >= G.avg)),
+      carriers: G.P.filter((x) => x.role === 'carrier').map((x) => x.no + '번 ' + x.name), hist:p.hist, avg:G.avg, imm:p.imm || null,
+      infBy: G.chain.filter((c) => c.to === p.i).map((c) => ({r:c.r, place:c.place, from:G.P[c.from].no + '번 ' + G.P[c.from].name})),
+      gave: G.chain.filter((c) => c.from === p.i).length};
   }
   return v;
 }
@@ -785,11 +809,11 @@ function netTick() {
       const j = JSON.stringify(studentView(+no));
       if (j !== s.last) { s.last = j; sendTo(no, {t:'v', j}); } }
   }
-  if (netCount % 30 === 0) {
+  if (netCount % 15 === 0) {
     const now = Date.now();
     for (const no in seats) { const s = seats[no]; if (!s.conn) continue;
       sendTo(no, {t:'ping', ts:now});
-      if (s.online && now - (s.lastSeen || 0) > 9000) { s.online = false; addLog(no + '번 연결 끊김', false); lastSig = ''; } }
+      if (s.online && now - (s.lastSeen || 0) > 4500) { s.online = false; addLog(no + '번 연결 끊김', false); lastSig = ''; } }
   }
 }
 
@@ -849,6 +873,62 @@ window.addEventListener('beforeunload', (e) => { if (G && G.P.length && G.phase 
 async function keepAwake() { try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch (e) {} }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
 keepAwake();
+
+// ===== 최초 감염자 예상 승률 (AI끼리 모의 진행) =====
+const EST_N = 200;
+let est = {key:'', wins:0, games:0, timer:null};
+function estKey() { const s = settings; return [s.n, s.carrier, s.researcher, s.tester, s.police, s.officer, s.beds, s.colds, s.dil, s.winRule, s.superImm, s.anti, s.mask].join(','); }
+function estText() {
+  if (est.key !== estKey() || est.games === 0) return '계산 중…';
+  const pc = Math.round(est.wins / est.games * 100);
+  return est.games < EST_N ? '약 ' + pc + '% (' + est.games + '판째)' : pc + '%';
+}
+function simOnce() {
+  const saveG = G, saveDirty = dirty; SIM = true;
+  try {
+    G = {P:[], phase:'lobby', round:0, t:0, dur:1, log:[], chain:[], locHist:[], visHist:[], trace:[], pendPCR:null, pendPol:null, closed:null, closeInfo:null, announced:null, curve:[], pcrShow:null, polShow:null, ev:[], contacts:{}, noms:[], startDis:null, startCold:null, loc:{}, done:false, pairs:new Set(), acc:[], reqs:[], reqId:0, aiResp:[], mask:{}};
+    buildPlayers();
+    for (let r = 1; r <= 6; r++) { startRound(r); endPlace(); for (let f = 0.05; f <= 1.0001; f += 0.05) fireEvents(f); settle(); }
+    startFinal(); finish();
+    return G.carrierWin;
+  } finally { G = saveG; dirty = saveDirty; SIM = false; }
+}
+function scheduleEstimate() {
+  const k = estKey();
+  if (est.key !== k) { if (est.timer && est.timer !== 'busy') clearTimeout(est.timer); est = {key:k, wins:0, games:0, timer:null}; }
+  if (est.timer || est.games >= EST_N) return;
+  const step = () => {
+    if (!G || G.phase !== 'lobby' || est.key !== estKey()) { est.timer = null; return; }
+    est.timer = 'busy';
+    for (let i = 0; i < 10 && est.games < EST_N; i++) { if (simOnce()) est.wins++; est.games++; }
+    lastSig = ''; render();
+    est.timer = est.games < EST_N ? setTimeout(step, 30) : null;
+  };
+  est.timer = setTimeout(step, 30);
+}
+
+// ===== 게임 기록 복사 =====
+function recordText() {
+  const n = G.P.length, L = [];
+  L.push('[바이러스 게임 기록] ' + new Date().toLocaleString('ko-KR'));
+  L.push('인원 ' + n + '명 (학생 ' + G.P.filter((p) => p.human).length + ' · AI ' + G.P.filter((p) => !p.human).length + ') · 병상 ' + settings.beds + '개 · 매 라운드 감기 ' + settings.colds + '명' + (settings.mask ? ' · 마스크 켜짐' : ''));
+  L.push('최종 감염자 ' + G.inf + '명 (' + lineName() + ' 기준 ' + carrierLine() + '명) → ' + (G.carrierWin ? '최초 감염자 승리' : '방역 팀 승리'));
+  L.push('반 평균 ' + G.avg + '점 · 승리한 일반 시민 ' + G.P.filter((p) => p.role === 'citizen' && !p.dis && p.final >= G.avg).length + '명');
+  L.push('라운드별 감염자: ' + G.curve.map((c, i) => (i + 1) + 'R ' + c + '명').join(', '));
+  L.push('역할: ' + ['carrier','researcher','tester','police','officer'].map((r) => ROLE[r] + ' ' + (G.P.filter((p) => p.role === r).map((p) => p.no + '번').join('·') || '없음')).join(' / ') +
+    ' / 슈퍼 면역자 ' + (G.P.filter((p) => p.imm === 'super').map((p) => p.no + '번').join('·') || '없음') + ' / 항체 보유자 ' + (G.P.filter((p) => p.imm === 'anti').map((p) => p.no + '번').join('·') || '없음'));
+  L.push('방역관 폐쇄: ' + (G.closed ? PL[G.closed] : '없음'));
+  L.push('감염 경로: ' + (G.chain.map((c) => c.r + 'R ' + G.P[c.from].no + '→' + G.P[c.to].no + '(' + PL[c.place] + ')').join(', ') || '없음'));
+  L.push('점수 순위:');
+  G.P.slice().sort((a, b) => b.final - a.final).forEach((p, i) => L.push((i + 1) + '. ' + p.no + '번 ' + p.name + ' ' + p.final + '점' + (p.pen ? ' (감점 −' + p.pen + ')' : '') + ' · ' + ROLE[p.role] + (p.dis ? ' · 감염' : '')));
+  return L.join('\n');
+}
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-act="copyrec"]'); if (!b || !G || G.phase !== 'result') return;
+  const text = recordText();
+  const show = () => { $('namesLayer').innerHTML = '<div class="ov"><div class="det" role="dialog" aria-label="게임 기록" style="width:720px"><div class="row" style="padding:0"><b style="font-size:20px">게임 기록</b><button data-act="namesClose">닫기</button></div><div class="sub">아래 내용을 모두 선택해서 복사하세요.</div><textarea readonly rows="14" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:14px;background:var(--card);color:var(--ink)">' + esc(text) + '</textarea></div></div>'; };
+  try { navigator.clipboard.writeText(text).then(() => { b.textContent = '복사했어요 ✔'; setTimeout(() => { b.textContent = '게임 기록 복사'; }, 2000); }, show); } catch (e) { show(); }
+});
 
 newGame(); render(); openRoom();
 }
