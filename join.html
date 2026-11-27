@@ -59,7 +59,7 @@ input.txt{width:100%;min-height:48px;border:1px solid var(--line);border-radius:
 </style>
 </head>
 <body>
-<div class="top"><div><span class="dot" id="dot"></span><b id="who">바이러스 게임</b> <span class="sub" id="sub"></span></div><div style="display:flex;align-items:center;gap:10px"><span class="score" id="score" style="display:none"></span><div class="clock" id="clock"></div></div></div>
+<div class="top"><div><span class="dot" id="dot"></span><b id="who">바이러스 게임</b> <span class="sub" id="sub"></span></div><div style="display:flex;align-items:center;gap:10px"><button id="helpBtn" data-a="help" style="display:none;min-height:36px;padding:0 10px">📖 설명</button><span class="score" id="score" style="display:none"></span><div class="clock" id="clock"></div></div></div>
 <div id="toast"></div>
 <main id="app"></main>
 <div id="layer"></div>
@@ -392,18 +392,31 @@ function resultView() {
     '<div class="card"><b>나의 동선</b>' + r.hist.map((x) => '<div class="row" style="padding:3px 0"><span>' + x.r + 'R ' + PL[x.place] + (x.forced ? ' (격리)' : '') + (x.bedless ? ' (병상 부족)' : '') + '</span><span class="sub">장소 +' + x.pts + ' · 접촉 +' + x.c + '</span></div>').join('') + '</div>';
 }
 
-function renderLayer() {
-  if (!V || !V.tut) { $('layer').innerHTML = ''; localDet = null; return; }
-  const S = SLIDES[V.tut.page] || SLIDES[0];
+let help = null, lastLayer = '';
+function setLayer(html, resetScroll) {
+  if (html === lastLayer) return; lastLayer = html;
+  const old = $('layer').querySelector('.sheet'), st = old && !resetScroll ? old.scrollTop : 0;
+  $('layer').innerHTML = html;
+  const nw = $('layer').querySelector('.sheet'); if (nw) nw.scrollTop = st;
+}
+function renderLayer(resetScroll) {
+  const hb = $('helpBtn'); if (hb) hb.style.display = (me && everJoined && V && !V.tut) ? '' : 'none';
+  if (V && V.tut) help = null;
+  if (!V || (!V.tut && !help)) { setLayer(''); localDet = null; return; }
+  const T = V.tut || {page:help.page, open:null};
+  const S = SLIDES[T.page] || SLIDES[0];
   let body = '<div style="text-align:center"><div style="font-size:46px">' + S.e + '</div><h2>' + S.title + '</h2>' + (S.sub ? '<div class="sub">' + S.sub + '</div>' : '') + '</div>';
   S.groups.forEach((g, gi) => { body += (g.label ? '<div class="sub" style="font-weight:700">' + g.label + '</div>' : '') +
     g.items.map((it, ii) => '<button class="tc" data-det="' + gi + '-' + ii + '" style="background:' + (g.multi ? 'var(--multi)' : 'var(--card)') + '"><span class="e">' + it[0] + '</span><span style="flex:1"><b>' + it[1] + '</b><div style="font-size:13px;font-weight:600">' + tx(it[2]) + '</div><div class="sub">' + tx(it[3]) + '</div></span><span style="color:var(--blue)">›</span></button>').join(''); });
   if (S.final) body += '<div class="big" style="text-align:center;color:var(--blue)">' + S.final + '</div>';
-  const openKey = V.tut.open || localDet;
+  const openKey = T.open || localDet;
   let det = '';
   if (openKey) { const [gi, ii] = openKey.split('-').map(Number); const it = S.groups[gi] && S.groups[gi].items[ii];
-    if (it) det = '<div class="ov"><div class="det" role="dialog" aria-label="세부 설명"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:38px">' + it[0] + '</span><b style="font-size:22px">' + it[1] + '</b></div><div class="card" style="background:var(--soft);border:0"><b>' + tx(it[2]) + '</b><div class="sub">' + tx(it[3]) + '</div></div>' + it[4].map((t) => '<div>• ' + tx(t) + '</div>').join('') + (V.tut.open ? '' : '<button data-a="detx">닫기</button>') + '</div></div>'; }
-  $('layer').innerHTML = '<div class="ov"><div class="sheet" role="dialog" aria-label="게임 설명"><div class="row" style="padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)"><b>게임 설명</b><span class="sub">' + (V.tut.page + 1) + ' / ' + SLIDES.length + '</span></div><div class="bd">' + body + '</div><div class="sub" style="text-align:center;padding:10px">👩‍🏫 선생님이 넘기면 같이 넘어가요</div></div></div>' + det;
+    if (it) det = '<div class="ov"><div class="det" role="dialog" aria-label="세부 설명"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:38px">' + it[0] + '</span><b style="font-size:22px">' + it[1] + '</b></div><div class="card" style="background:var(--soft);border:0"><b>' + tx(it[2]) + '</b><div class="sub">' + tx(it[3]) + '</div></div>' + it[4].map((t) => '<div>• ' + tx(t) + '</div>').join('') + (T.open ? '' : '<button data-a="detx">닫기</button>') + '</div></div>'; }
+  const foot = V.tut ? '<div class="sub" style="text-align:center;padding:10px">👩‍🏫 선생님이 넘기면 같이 넘어가요</div>'
+    : '<div style="display:flex;gap:8px;padding:10px 16px 14px;position:sticky;bottom:0;background:var(--bg)"><button data-a="hprev" style="flex:1"' + (T.page === 0 ? ' disabled' : '') + '>‹ 이전</button><button data-a="hnext" style="flex:1"' + (T.page >= SLIDES.length - 1 ? ' disabled' : '') + '>다음 ›</button><button class="pri" data-a="hclose" style="flex:1">게임으로</button></div>';
+  const tabs = V.tut ? '' : '<div style="display:flex;gap:6px;overflow-x:auto;padding:10px 16px 0">' + SLIDES.map((s, i) => '<button data-hp="' + i + '" style="min-height:40px;padding:0 10px;flex:none;font-size:20px;' + (i === T.page ? 'background:var(--blue);border-color:var(--blue)' : '') + '" aria-label="' + (i + 1) + '쪽">' + s.e + '</button>').join('') + '</div>';
+  setLayer('<div class="ov"><div class="sheet" role="dialog" aria-label="게임 설명"><div class="row" style="padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1"><b>📖 게임 설명</b><span class="sub">' + (T.page + 1) + ' / ' + SLIDES.length + (V.tut ? '' : ' · 게임은 계속 진행 중') + '</span></div>' + tabs + '<div class="bd">' + body + '</div>' + foot + '</div></div>' + det, resetScroll);
 }
 
 // ---------- 입력 ----------
@@ -419,7 +432,12 @@ document.addEventListener('click', (ev) => {
   if (d.a === 'room') { const v = $('rc').value.toUpperCase().trim(); if (v.length === 4) location.href = location.pathname + '?room=' + v; return; }
   if (d.a === 'rapid') { act({a:'rapid'}); return; }
   if (d.a === 'detx') { localDet = null; renderLayer(); return; }
-  if (d.det) { if (!V.tut.open) { localDet = d.det; renderLayer(); } return; }
+  if (d.det) { if (!(V.tut && V.tut.open)) { localDet = d.det; renderLayer(); } return; }
+  if (d.a === 'help') { help = {page: help ? help.page : 0}; localDet = null; renderLayer(true); return; }
+  if (d.a === 'hclose') { help = null; localDet = null; renderLayer(); return; }
+  if (d.a === 'hprev' && help) { help.page = Math.max(0, help.page - 1); localDet = null; renderLayer(true); return; }
+  if (d.a === 'hnext' && help) { help.page = Math.min(SLIDES.length - 1, help.page + 1); localDet = null; renderLayer(true); return; }
+  if (d.hp != null && help) { help.page = +d.hp; localDet = null; renderLayer(true); return; }
   if (d.place) { act({a:'place', place:d.place}); V.choice = d.place; render(true); return; }
   if (d.vote) { act({a:'vote', to:+d.vote}); V.myVote = +d.vote; render(true); return; }
   if (d.mask) { act({a:'mask', on: d.mask === '1'}); V.mask = d.mask === '1'; render(true); return; }
