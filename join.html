@@ -70,7 +70,7 @@ const SLIDES = [
         ['🙂', '일반 시민', '게임이 끝날 때 감염되지 않고', '⭐ 반 평균 점수 이상이면 승리', ['감염되지 않은 일반 시민은 모두 승리할 수 있어요.', '기준 점수는 게임이 끝날 때 반 전체의 평균 점수예요. 평균보다 낮으면 패배예요.', '⭐ 점수 얻는 법 ①  학교: 갈 때마다 +1 → +2 → +3 (최대 +3)', '⭐ 점수 얻는 법 ②  노래방 · PC방 · 식당: 장소마다 첫 방문 +3, 이후 +2', '⭐ 점수 얻는 법 ③  접촉: 성사될 때마다 +1', '⚠️ 1~3라운드, 4~6라운드에 학교를 못 가면 각각 −10점 · 집 · 병원은 0점', '감염돼도 병원에서 치료받으면 다시 감염 안 된 상태가 돼요.']],
         ['🦠', '최초 감염자', '게임이 끝날 때 감염자가', '과반(24명 중 13명) 이상이면 승리', ['점수와 상관없이 감염자 수로만 승패가 정해져요.', '1라운드에는 증상이 없어요.', '병원에 가면 증상이 감기 수준으로 줄지만, 병원체는 그대로예요.']],
         ['🛡️', '방역 팀', '연구원 · 검사원 · 방역 경찰 · 방역관', '감염자가 과반보다 적으면 승리', ['점수와 상관없이 감염자 수로 승패가 정해져요.', '각자의 능력으로 감염 확산을 막으세요.']],
-        ['🕵️', '마피아 모드', '선생님 설정에 따라 켜져요', '끝나고 투표로 최초 감염자를 찾아요', ['켜져 있으면 최초 감염자를 뺀 모두가 한 팀(시민팀)이에요.', '최초 감염자가 감염 목표를 이뤄도, 마지막 투표에서 최초 감염자를 한 명이라도 맞히면 시민팀이 이겨요.', '투표는 7라운드가 끝난 뒤 모두 한 표씩 해요.', '점수 순위는 재미로 봐요.']]
+        ['🕵️', '마피아 모드', '선생님 설정에 따라 켜져요', '감염자 수 공개 → 기준 이상이면 투표', ['켜져 있으면 최초 감염자를 뺀 모두가 한 팀(시민팀)이에요.', '7라운드가 끝나면 최종 감염자 수부터 공개해요. 기준보다 적으면 바로 시민팀 승리!', '기준 이상이면 모두의 라운드별 동선을 공개하고, 한 표씩 최초 감염자를 지목해요.', '최초 감염자를 한 명이라도 맞히면 시민팀 역전승, 못 맞히면 최초 감염자 승리예요.', '점수 순위는 재미로 봐요.']]
       ] }] },
       { e: '🔁', title: '한 라운드는 이렇게', groups: [{ items: [
         ['📍', '① 장소 고르기', '60초 동안 갈 곳을 골라요', '시간이 끝나면 자동으로 이동', ['시간 안에는 몇 번이든 바꿀 수 있어요.', '장소마다 받는 점수가 달라요.', '증상이 있다면 집이나 병원도 생각해 보세요.']],
@@ -221,6 +221,8 @@ function onData(d) {
 
 // ---------- 시계 ----------
 setInterval(() => {
+  if (V && V.phase === 'reveal' && Date.now() - revAt < V.rev.inf * 300 + 1500) render(false);
+  if (V && V.phase !== 'reveal') revAt = 0;
   const el = $('clock');
   if (!V || V.left == null) { el.textContent = ''; return; }
   const left = V.paused ? V.left : Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
@@ -250,8 +252,9 @@ function render(force) {
     if (V.phase === 'place') h += placeView();
     else if (V.phase === 'interact') h += interactView();
     else if (V.phase === 'officer') h += officerView();
+    else if (V.phase === 'reveal') h += revealView();
     else if (V.phase === 'vote') h += voteView();
-    else if (V.phase === 'final') h += '<div class="card"><h2>7라운드 · 모두 학교에 모였어요 🎒</h2><div class="sub">오늘은 접촉 없이 ' + (V.mafia ? '곧 🕵️ 최초 감염자 찾기 투표가 시작돼요.' : '결과를 기다려요.') + ' 학교 점수 +' + Math.min(m.schN, 3) + '점을 받았어요.</div>' + (V.pen ? '<div class="warn" style="margin-top:8px">등교 의무를 못 지켜서 최종 점수에서 −' + V.pen + '점이 빠져요.</div>' : '') + '</div>';
+    else if (V.phase === 'final') h += '<div class="card"><h2>7라운드 · 모두 학교에 모였어요 🎒</h2><div class="sub">오늘은 접촉 없이 ' + (V.mafia ? '곧 최종 감염자 수가 공개돼요. 두근두근…' : '결과를 기다려요.') + ' 학교 점수 +' + Math.min(m.schN, 3) + '점을 받았어요.</div>' + (V.pen ? '<div class="warn" style="margin-top:8px">등교 의무를 못 지켜서 최종 점수에서 −' + V.pen + '점이 빠져요.</div>' : '') + '</div>';
     else if (V.phase === 'result') h += resultView();
   }
   $('app').innerHTML = h;
@@ -361,15 +364,28 @@ function officerView() {
     '<div class="sub" style="margin:8px 0">한 곳을 4~6라운드 동안 폐쇄할 수 있어요.</div><div style="display:flex;flex-direction:column;gap:6px">' +
     RISKY.map((id) => '<button class="pri" data-close="' + id + '">' + PL[id] + ' 폐쇄하기</button>').join('') + '<button data-close="">폐쇄하지 않기</button></div></div>';
 }
+let revAt = 0;
+function revealView() {
+  const r = V.rev; if (!revAt) revAt = Date.now();
+  const el = Date.now() - revAt, n = Math.min(r.inf, Math.floor(el / 300)), done = el > r.inf * 300 + 900;
+  return '<div class="card" style="text-align:center;padding:24px"><div class="sub">최종 감염자 수</div><div style="font-size:84px;font-weight:700;line-height:1;color:' + (n >= r.line ? 'var(--or)' : 'var(--ink)') + '">' + n + '<span style="font-size:24px;color:var(--mut)"> / ' + r.n + '명</span></div><div class="sub" style="margin-top:6px">기준 ' + r.line + '명</div>' +
+    (done ? (r.infWin ? '<div class="big" style="color:var(--or);margin-top:12px">감염 확산! 🦠</div><div class="sub">곧 모두의 동선이 공개되고, 최초 감염자를 찾는 투표가 시작돼요.</div>' : '<div class="big" style="color:var(--ok);margin-top:12px">방역 성공! 시민팀 승리 🎉</div><div class="sub">곧 최초 감염자가 공개돼요.</div>') : '') + '</div>';
+}
+function moveTable() {
+  const cell = (s) => { const f = s.endsWith('*'), id = f ? s.slice(0, -1) : s; return '<td style="text-align:center;padding:4px;' + (RISKY.includes(id) ? 'background:var(--multi);' : '') + '">' + (id ? PL[id] + (f ? '·격' : '') : '–') + '</td>'; };
+  return '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left">학생</th>' + [1,2,3,4,5,6].map((r) => '<th>' + r + 'R</th>').join('') + '</tr></thead><tbody>' +
+    V.moves.map((m) => '<tr style="border-top:1px solid var(--line);' + (m.me ? 'font-weight:700;' : '') + '"><td style="padding:4px;white-space:nowrap">' + m.no + ' ' + esc(m.name) + (m.pos ? ' <span class="tag">양성</span>' : '') + '</td>' + m.pl.map(cell).join('') + '</tr>').join('') + '</tbody></table></div>';
+}
 function voteView() {
   const sel = V.myVote != null ? V.all.find((p) => p.i === V.myVote) : null;
-  return '<div class="card"><h2>🕵️ 최초 감염자는 누구?</h2><div class="sub" style="margin-bottom:8px">최초 감염자라고 생각하는 친구 한 명을 고르세요. 표를 가장 많이 받은 ' + V.nCar + '명 중에 최초 감염자가 있으면 시민팀 승리예요.' + (V.me.role === 'carrier' ? ' <b>당신은 최초 감염자예요. 들키지 않게 다른 친구에게 투표하세요!</b>' : '') + '</div>' +
+  return '<div class="card"><h2>🕵️ 감염자 ' + V.inf + '명! 최초 감염자는 누구?</h2><div class="sub" style="margin-bottom:8px">최초 감염자라고 생각하는 친구 한 명을 고르세요. 표를 가장 많이 받은 ' + V.nCar + '명 중에 최초 감염자가 있으면 시민팀 승리예요.' + (V.me.role === 'carrier' ? ' <b>당신은 최초 감염자예요. 들키지 않게 다른 친구에게 투표하세요!</b>' : '') + '</div>' +
     '<div class="seats">' + V.all.map((p) => '<button class="' + (V.myVote === p.i ? 'sel' : '') + '" data-vote="' + p.i + '" title="' + esc(p.name) + '">' + p.no + '</button>').join('') + '</div>' +
-    '<div class="note" style="margin-top:10px">' + (sel ? '✅ 내 투표: ' + sel.no + '번 ' + esc(sel.name) + ' · 시간이 끝나기 전까지 바꿀 수 있어요' : '아직 투표하지 않았어요') + '</div></div>';
+    '<div class="note" style="margin-top:10px">' + (sel ? '✅ 내 투표: ' + sel.no + '번 ' + esc(sel.name) + ' · 시간이 끝나기 전까지 바꿀 수 있어요' : '아직 투표하지 않았어요') + '</div></div>' +
+    '<div class="card"><b>🗺️ 모두의 라운드별 동선</b><div class="sub" style="margin:4px 0 8px">주황 칸은 다중이용시설, ·격은 강제 자가격리예요.</div>' + moveTable() + '</div>';
 }
 function resultView() {
   const r = V.res, m = V.me;
-  return '<div class="verdict"><div style="opacity:.8">' + (r.mafia ? (r.carrierWin ? '감염 확산 · 최초 감염자 승리' : (r.infWin ? '투표로 역전! · 시민팀 승리' : '방역 성공 · 시민팀 승리')) : (r.carrierWin ? '감염 확산 · 최초 감염자 승리' : '방역 성공 · 방역 팀 승리')) + '</div><div style="font-size:40px;font-weight:700;line-height:1.2">' + (r.win ? '승리 🎉' : '패배') + '</div><div style="opacity:.8">최종 감염자 ' + r.inf + '명 · 최초 감염자는 ' + esc(r.carriers.join(', ')) + '</div>' + (r.mafia ? '<div style="margin-top:6px">🕵️ 투표 지목: ' + esc(r.picked.join(', ')) + '</div>' : '') + '</div>' +
+  return '<div class="verdict"><div style="opacity:.8">' + (r.mafia ? (r.carrierWin ? '감염 확산 · 최초 감염자 승리' : (r.infWin ? '투표로 역전! · 시민팀 승리' : '방역 성공 · 시민팀 승리')) : (r.carrierWin ? '감염 확산 · 최초 감염자 승리' : '방역 성공 · 방역 팀 승리')) + '</div><div style="font-size:40px;font-weight:700;line-height:1.2">' + (r.win ? '승리 🎉' : '패배') + '</div><div style="opacity:.8">최종 감염자 ' + r.inf + '명 · 최초 감염자는 ' + esc(r.carriers.join(', ')) + '</div>' + (r.mafia && r.picked ? '<div style="margin-top:6px">🕵️ 투표 지목: ' + esc(r.picked.join(', ')) + '</div>' : '') + '</div>' +
     '<div class="card"><div class="row"><span>내 역할</span><b>' + ROLE[m.role] + '</b></div><div class="row"><span>감염 여부</span><b>' + (r.dis ? '감염' : '감염 안 됨') + '</b></div><div class="row"><span>최종 점수</span><b>' + r.final + '점' + (r.pen ? ' (등교 감점 −' + r.pen + ')' : '') + '</b></div><div class="row"><span>순위</span><b>' + r.rank + '위 / ' + r.n + '명</b></div><div class="row"><span>반 평균</span><b>' + r.avg + '점</b></div></div>' +
     (r.imm ? '<div class="card" style="text-align:center;border-color:var(--blue)"><div style="font-size:36px">🧬</div><b style="font-size:20px">사실 나는 ' + (r.imm === 'super' ? '슈퍼 면역자' : '항체 보유자') + '였어요!</b><div class="sub">' + (r.imm === 'super' ? '감기도 감염병도 걸리지 않는 몸이었어요.' : '감기는 걸려도 감염병에는 걸리지 않는 몸이었어요.') + '</div></div>' : '') +
     '<div class="card"><b>🔎 나의 감염 기록</b>' + (m.role === 'carrier' ? '<div class="sub">나는 처음부터 병원체를 가진 최초 감염자였어요.</div>' : (r.infBy.length ? r.infBy.map((x) => '<div class="row" style="padding:3px 0"><span>' + x.r + 'R ' + PL[x.place] + '</span><b>' + esc(x.from) + '에게 감염</b></div>').join('') : '<div class="sub">한 번도 감염되지 않았어요.</div>')) + '<div class="row" style="margin-top:6px"><span>내가 옮긴 사람</span><b>' + r.gave + '명</b></div></div>' +
